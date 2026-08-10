@@ -3,58 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 产业链拆解 · 政策梳理</title>
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-
-.sidebar-footer{padding:12px;border-top:1px solid var(--border);flex-shrink:0}
-.view-toggle{display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--border)}
-.view-toggle .vt-btn{flex:1;padding:6px 0;text-align:center;font-size:11px;font-weight:600;cursor:pointer;transition:.12s;background:var(--surface);color:var(--fg-2);border:none}
-.view-toggle .vt-btn:hover{background:var(--elevated);color:var(--fg)}
-.view-toggle .vt-btn.active{background:var(--accent);color:#fff}
-
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.header .h-title{font-weight:650;font-size:14px}
-.header .h-meta{margin-left:auto;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:8px}
-.content{padding:18px 20px 32px}
-
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.card-h h3{font-size:13.5px;font-weight:650}
-.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
-.card-b{padding:16px}
-
 /* Phase Progress */
 .progress-bar{display:flex;align-items:center;gap:0;margin-bottom:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;overflow:hidden}
 .progress-step{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:6px;font-size:13px;font-weight:600;color:var(--fg-2);position:relative;cursor:pointer;transition:.15s}
@@ -68,7 +20,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .progress-arrow{color:var(--border-2);font-size:14px;flex-shrink:0}
 
 /* Input Panel */
-.input-methods{display:flex;gap:2px;margin-bottom:0;background:var(--surface-2);border-radius:var(--radius) var(--radius) 0 0;padding:4px 4px 0}
+.input-tabs{display:flex;gap:2px;margin-bottom:0;background:var(--surface-2);border-radius:var(--radius) var(--radius) 0 0;padding:4px 4px 0}
 .im-tab{padding:8px 16px;font-size:12px;color:var(--fg-2);cursor:pointer;border-radius:6px 6px 0 0;transition:.12s;position:relative;font-weight:500}
 .im-tab:hover{color:var(--fg);background:var(--elevated)}
 .im-tab.active{color:var(--accent);background:var(--surface);font-weight:650}
@@ -80,18 +32,18 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .input-body textarea::placeholder{color:var(--muted)}
 
 .hot-topics{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
-.hot-topics .hint{font-size:11px;color:var(--muted);flex-shrink:0}
-.hot-chip{font-size:10.5px;padding:4px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);color:var(--fg-2);cursor:pointer;transition:.12s}
-.hot-chip:hover{background:var(--elevated);color:var(--fg);border-color:var(--border-2)}
-.hot-chip.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
+.hot-topics .hot-label{font-size:11px;color:var(--muted);flex-shrink:0}
+.topic-chip{font-size:10.5px;padding:4px 14px;border-radius:14px;background:var(--surface-2);border:1px solid var(--border);color:var(--fg-2);cursor:pointer;transition:.12s}
+.topic-chip:hover{background:var(--elevated);color:var(--fg);border-color:var(--border-2)}
+.topic-chip.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
 
 .input-actions{display:flex;align-items:center;gap:10px;margin-top:14px}
-.input-actions .btn{padding:7px 20px;border-radius:6px;font-size:12.5px;font-weight:650;cursor:pointer;transition:.15s;border:1px solid transparent}
+.input-actions button{padding:7px 20px;border-radius:6px;font-size:12.5px;font-weight:650;cursor:pointer;transition:.15s;border:1px solid transparent}
 .input-actions .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
-.input-actions .btn-primary:hover{background:#2d7ae0}
-.input-actions .btn-ghost{background:transparent;color:var(--fg-2);border-color:var(--border)}
-.input-actions .btn-ghost:hover{background:var(--surface-2);color:var(--fg)}
-.input-actions .cost{font-size:11px;color:var(--muted);margin-left:auto}
+.input-actions .btn-primary:hover{background:#2d7ae0;color:#fff}
+.input-actions .btn-outline{background:transparent;color:var(--fg-2);border-color:var(--border)}
+.input-actions .btn-outline:hover{background:var(--surface-2);color:var(--fg)}
+.input-actions .token-hint{font-size:11px;color:var(--muted);margin-left:auto}
 
 /* LLM Result Panel */
 .result-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
@@ -198,6 +150,36 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .similarity-alert .sa-load:hover{background:#d8941a}
 .similarity-alert .sa-ignore{background:transparent;color:var(--fg-2);border-color:var(--border)}
 .similarity-alert .sa-ignore:hover{color:var(--fg)}
+
+/* Template Panel */
+.template-panel{margin:-8px 0 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:6px 14px}
+.tpl-item{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);font-size:12px}
+.tpl-item:last-child{border-bottom:none}
+.tpl-name{color:var(--fg);font-weight:600}
+.tpl-meta{font-size:10.5px;color:var(--muted)}
+.tpl-acts{margin-left:auto;display:flex;gap:6px}
+.tpl-acts button{font-size:10.5px;padding:3px 10px;border-radius:4px;border:1px solid var(--border);background:var(--elevated);color:var(--fg-2);cursor:pointer;transition:.12s}
+.tpl-acts button:hover{background:var(--surface);color:var(--fg)}
+.tpl-acts button.danger{color:var(--up);border-color:var(--up)}
+.tpl-acts button.danger:hover{background:var(--up-bg)}
+.tpl-empty{padding:14px;text-align:center;color:var(--muted);font-size:11.5px}
+
+/* Input Panes */
+.url-input{width:100%;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:13px;font-family:var(--font-sans);outline:none}
+.url-input:focus{border-color:var(--accent)}
+.pane-btn{padding:7px 20px;border-radius:6px;font-size:12.5px;font-weight:650;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--fg-2);transition:.15s;font-family:var(--font-sans)}
+.pane-btn:hover{background:var(--surface-2);color:var(--fg)}
+.pane-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.pane-btn.primary:hover{background:#2d7ae0;color:#fff}
+.pdf-drop{border:1.5px dashed var(--border-2);border-radius:8px;padding:34px 16px;text-align:center;color:var(--muted);font-size:12px;cursor:pointer;transition:.15s;line-height:1.8}
+.pdf-drop:hover{border-color:var(--accent);color:var(--fg-2);background:var(--accent-dim)}
+.lib-item{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--border);font-size:12px}
+.lib-item:last-child{border-bottom:none}
+.lib-title{color:var(--fg);font-weight:600}
+.lib-meta{font-size:10.5px;color:var(--muted);margin-top:2px}
+.lib-item .pane-btn{margin-left:auto;padding:4px 14px;font-size:11px;flex-shrink:0}
+.concept-link{cursor:pointer}
+.concept-link:hover{text-decoration:underline}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -208,12 +190,13 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
   <div class="main">
     <div id="header-mount"></div>
     <main class="content">
-                  <div class="template-bar" onclick="loadTemplate()">
+                  <div class="template-bar" id="templateBar" onclick="toggleTemplatePanel()">
                     <span class="tb-icon">📋</span>
                     <span class="tb-text">已保存模板:</span>
-                    <span class="tb-count">3 个</span>
-                    <span class="tb-arrow">▶ 展开</span>
+                    <span class="tb-count" id="templateCount">3 个</span>
+                    <span class="tb-arrow" id="templateArrow">▶ 展开</span>
                   </div>
+                  <div class="template-panel" id="templatePanel" style="display:none"></div>
 
                   <div class="card" style="margin-bottom:14px">
                     <div class="card-h">
@@ -227,19 +210,48 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <span class="im-tab" onclick="switchInputTab('library')">📋 政策库</span>
                     </div>
                     <div class="input-body">
-                      <textarea id="policyText">国务院近日印发《关于进一步推动集成电路产业高质量发展的若干政策措施》，明确将光刻机、刻蚀机等半导体关键设备列为重大科技攻关方向。国家大基金三期规模达3000亿元，重点投向半导体设备与材料、先进封装等领域。地方配套资金不低于500亿元。实施周期为2026-2028年三年行动计划。同时，文件强调加快AI算力基础设施自主可控建设，鼓励数据中心采用国产算力芯片。先进封装技术被列入国家重大科技专项。</textarea>
+                      <div class="input-pane" data-pane="paste">
+                        <textarea id="policyText">国务院近日印发《关于进一步推动集成电路产业高质量发展的若干政策措施》，明确将光刻机、刻蚀机等半导体关键设备列为重大科技攻关方向。国家大基金三期规模达3000亿元，重点投向半导体设备与材料、先进封装等领域。地方配套资金不低于500亿元。实施周期为2026-2028年三年行动计划。同时，文件强调加快AI算力基础设施自主可控建设，鼓励数据中心采用国产算力芯片。先进封装技术被列入国家重大科技专项。</textarea>
+                      </div>
+                      <div class="input-pane" data-pane="url" style="display:none">
+                        <input id="urlInput" class="url-input" type="url" placeholder="粘贴政策原文链接，如 https://www.gov.cn/zhengce/..." />
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+                          <button class="pane-btn primary" id="fetchUrlBtn" onclick="fetchUrl()">🌐 抓取网页内容</button>
+                          <span style="font-size:11px;color:var(--muted)">抓取成功后自动载入「粘贴文章」，可直接 LLM 解读</span>
+                        </div>
+                      </div>
+                      <div class="input-pane" data-pane="pdf" style="display:none">
+                        <div class="pdf-drop" id="pdfDrop" onclick="document.getElementById('pdfFile').click()">
+                          📁 点击选择 PDF 文件（≤ 20MB）<br/>解析后自动载入「粘贴文章」
+                        </div>
+                        <input type="file" id="pdfFile" accept=".pdf" style="display:none" onchange="handlePdf(this)" />
+                      </div>
+                      <div class="input-pane" data-pane="library" style="display:none">
+                        <div class="lib-item">
+                          <div><div class="lib-title">关于进一步推动集成电路产业高质量发展的若干政策措施</div><div class="lib-meta">国务院 · 2026-06-20 · 产业政策</div></div>
+                          <button class="pane-btn" onclick="loadLibrary('ic')">载入</button>
+                        </div>
+                        <div class="lib-item">
+                          <div><div class="lib-title">关于加快构建全国一体化算力网的实施意见</div><div class="lib-meta">发改委 · 2026-05-28 · 算力基础设施</div></div>
+                          <button class="pane-btn" onclick="loadLibrary('compute')">载入</button>
+                        </div>
+                        <div class="lib-item">
+                          <div><div class="lib-title">关于促进新型储能并网和调度运用的通知</div><div class="lib-meta">能源局 · 2026-04-15 · 新能源</div></div>
+                          <button class="pane-btn" onclick="loadLibrary('storage')">载入</button>
+                        </div>
+                      </div>
                     </div>
                     <div class="hot-topics">
                       <span class="hot-label">🔥 热门题材</span>
-                      <button class="topic-chip active">半导体国产替代</button>
-                      <button class="topic-chip">AI算力自主可控</button>
-                      <button class="topic-chip">新能源储能</button>
-                      <button class="topic-chip">低空经济</button>
-                      <button class="topic-chip">机器人</button>
-                      <button class="topic-chip">数据要素</button>
+                      <button class="topic-chip active" onclick="selectTopic(this, 'semiconductor')">半导体国产替代</button>
+                      <button class="topic-chip" onclick="selectTopic(this, 'ai_compute')">AI算力自主可控</button>
+                      <button class="topic-chip" onclick="selectTopic(this, 'storage')">新能源储能</button>
+                      <button class="topic-chip" onclick="selectTopic(this, 'low_altitude')">低空经济</button>
+                      <button class="topic-chip" onclick="selectTopic(this, 'robot')">机器人</button>
+                      <button class="topic-chip" onclick="selectTopic(this, 'data_factor')">数据要素</button>
                     </div>
                     <div class="input-actions">
-                      <button class="btn-primary" onclick="analyze()">🔍 LLM 解读</button>
+                      <button class="btn btn-primary" id="analyzeBtn" onclick="analyze()">🔍 LLM 解读</button>
                       <button class="btn-outline" onclick="clearInput()">清空</button>
                       <span class="token-hint">预计消耗 ~1,200 tokens</span>
                     </div>
@@ -273,8 +285,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                           <div class="dc-title" contenteditable="true">半导体设备国产替代</div>
                           <div class="dc-desc" contenteditable="true">政策明确将光刻机、刻蚀机等半导体关键设备列为重大科技攻关方向，国家大基金三期3000亿元重点投向。</div>
                           <div class="dc-actions">
-                            <button class="revert">↩ 还原</button>
-                            <button class="delete">✕ 删除</button>
+                            <button class="revert" onclick="revertDirection(this)">↩ 还原</button>
+                            <button class="delete" onclick="deleteDirection(this)">✕ 删除</button>
                           </div>
                         </div>
                         <div class="dc-card">
@@ -282,8 +294,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                           <div class="dc-title" contenteditable="true">AI算力自主可控</div>
                           <div class="dc-desc" contenteditable="true">鼓励数据中心采用国产算力芯片，加快AI算力基础设施自主可控建设。</div>
                           <div class="dc-actions">
-                            <button class="revert">↩ 还原</button>
-                            <button class="delete">✕ 删除</button>
+                            <button class="revert" onclick="revertDirection(this)">↩ 还原</button>
+                            <button class="delete" onclick="deleteDirection(this)">✕ 删除</button>
                           </div>
                         </div>
                         <div class="dc-card edited">
@@ -292,8 +304,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                           <div class="dc-title" contenteditable="true">先进封装技术突破</div>
                           <div class="dc-desc" contenteditable="true">先进封装列入国家重大科技专项，重点发展Chiplet和3D封装技术。（用户修正：补充了技术方向）</div>
                           <div class="dc-actions">
-                            <button class="revert">↩ 还原</button>
-                            <button class="delete">✕ 删除</button>
+                            <button class="revert" onclick="revertDirection(this)">↩ 还原</button>
+                            <button class="delete" onclick="deleteDirection(this)">✕ 删除</button>
                           </div>
                         </div>
                         <div class="add-direction" onclick="addDirection()">+ 新增方向</div>
@@ -350,24 +362,24 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                           <tr>
                             <td class="dir-name">半导体设备国产替代</td>
                             <td class="ind-name">半导体设备</td>
-                            <td class="concept">ths_半导体设备</td>
-                            <td class="stock-count">12只</td>
+                            <td class="concept concept-link" onclick="showConcept('ths_半导体设备')">ths_半导体设备</td>
+                            <td class="stock-count" onclick="showStockList('半导体设备')">12只</td>
                             <td style="text-align:center"><span class="conf-badge exact">精确匹配</span></td>
                             <td class="action-cell"><button onclick="goToDecompose()">🔬 解构</button></td>
                           </tr>
                           <tr>
                             <td class="dir-name">AI算力自主可控</td>
                             <td class="ind-name">AI芯片+算力</td>
-                            <td class="concept">ths_AI芯片</td>
-                            <td class="stock-count">8只</td>
+                            <td class="concept concept-link" onclick="showConcept('ths_AI芯片')">ths_AI芯片</td>
+                            <td class="stock-count" onclick="showStockList('AI芯片+算力')">8只</td>
                             <td style="text-align:center"><span class="conf-badge exact">精确匹配</span></td>
                             <td class="action-cell"><button onclick="goToDecompose()">🔬 解构</button></td>
                           </tr>
                           <tr>
                             <td class="dir-name">先进封装技术突破</td>
                             <td class="ind-name">封装测试</td>
-                            <td class="concept">ths_先进封装</td>
-                            <td class="stock-count">6只</td>
+                            <td class="concept concept-link" onclick="showConcept('ths_先进封装')">ths_先进封装</td>
+                            <td class="stock-count" onclick="showStockList('封装测试')">6只</td>
                             <td style="text-align:center"><span class="conf-badge llm">LLM推断</span></td>
                             <td class="action-cell"><button onclick="goToDecompose()">🔬 解构</button></td>
                           </tr>
@@ -388,38 +400,165 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
 <script>
-// ── View Toggle ──
-function setView(mode) {
-  document.querySelectorAll('.vt-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(mode === 'trader' ? '操盘手' : '投资者')));
-  const contextView = document.querySelector('.context-bar .cb-view');
-  if (contextView) contextView.textContent = mode === 'trader' ? '操盘手模式' : '投资者模式';
+// ── 输入方式 Tab（4 种输入真实切换）──
+var currentInputTab = 'paste';
 
-  if (mode === 'investor') {
-    // Reorder tabs: hot topics first
-    const tabs = document.getElementById('inputTabs');
-    const hotTab = document.createElement('span');
-    hotTab.className = 'im-tab';
-    hotTab.textContent = '🔥 热门题材';
-    hotTab.onclick = function() { switchInputTab('hot') };
-    if (!tabs.querySelector('.im-tab:first-child').textContent.includes('热门')) {
-      tabs.insertBefore(hotTab, tabs.firstChild);
-    }
-  } else {
-    const hotTab = document.querySelector('#inputTabs .im-tab:first-child');
-    if (hotTab && hotTab.textContent.includes('热门')) {
-      hotTab.remove();
-    }
-  }
+function switchInputTab(tab) {
+  currentInputTab = tab;
+  document.querySelectorAll('#inputTabs .im-tab').forEach(function(t) {
+    var txt = t.textContent;
+    var match = (tab === 'paste' && txt.includes('粘贴')) ||
+                (tab === 'url' && txt.includes('URL')) ||
+                (tab === 'pdf' && txt.includes('PDF')) ||
+                (tab === 'library' && txt.includes('政策库'));
+    t.classList.toggle('active', match);
+  });
+  document.querySelectorAll('.input-pane').forEach(function(p) {
+    p.style.display = p.getAttribute('data-pane') === tab ? '' : 'none';
+  });
 }
 
-// ── Input Tab Switch ──
-function switchInputTab(tab) {
-  document.querySelectorAll('.im-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.im-tab').forEach(t => {
-    if (t.textContent.toLowerCase().includes(tab) || (tab === 'paste' && t.textContent.includes('粘贴')) || (tab === 'url' && t.textContent.includes('URL')) || (tab === 'pdf' && t.textContent.includes('PDF')) || (tab === 'library' && t.textContent.includes('政策库'))) {
-      t.classList.add('active');
-    }
+// ── 热门题材（点击载入对应 mock 政策原文）──
+var TOPIC_TEXTS = {
+  semiconductor: '国务院近日印发《关于进一步推动集成电路产业高质量发展的若干政策措施》，明确将光刻机、刻蚀机等半导体关键设备列为重大科技攻关方向。国家大基金三期规模达3000亿元，重点投向半导体设备与材料、先进封装等领域。地方配套资金不低于500亿元。实施周期为2026-2028年三年行动计划。同时，文件强调加快AI算力基础设施自主可控建设，鼓励数据中心采用国产算力芯片。先进封装技术被列入国家重大科技专项。',
+  ai_compute: '国家发改委等部门联合发布《关于加快构建全国一体化算力网的实施意见》，提出到2028年国产AI芯片在新建智算中心的渗透率不低于60%，鼓励采用自主可控算力芯片，对采购国产算力设备给予最高15%的补贴。',
+  storage: '国家能源局发布《关于促进新型储能并网和调度运用的通知》，明确新型储能可作为独立储能参与电力市场，要求2027年前建成30GW以上共享储能示范项目，完善容量电价补偿机制。',
+  low_altitude: '工信部等四部门联合印发《低空经济发展专项行动方案（2026-2028年）》，提出建设50个以上低空经济示范区，加快eVTOL适航审定，对无人机物流、城市空中交通等场景给予空域开放支持。',
+  robot: '工信部发布《人形机器人产业创新发展指导意见》，目标2027年形成安全可靠的产业链供应链体系，培育2-3家有全球影响力的生态型企业，突破关节电机、减速器、灵巧手等核心部件。',
+  data_factor: '国家数据局印发《关于加快推进数据要素市场化配置改革的若干措施》，支持公共数据授权运营试点扩围至50个城市，培育数据商和第三方专业服务机构，探索数据资产入表与交易机制。'
+};
+
+function selectTopic(chip, key) {
+  document.querySelectorAll('.topic-chip').forEach(function(c) { c.classList.remove('active'); });
+  chip.classList.add('active');
+  document.getElementById('policyText').value = TOPIC_TEXTS[key] || '';
+  if (currentInputTab !== 'paste') switchInputTab('paste');
+  if (window.suyingToast) suyingToast('已载入题材「' + chip.textContent.trim() + '」，可点击 LLM 解读', 'info');
+}
+
+// ── URL 抓取（mock）──
+function fetchUrl() {
+  var input = document.getElementById('urlInput');
+  var url = input.value.trim();
+  if (!url) {
+    if (window.suyingToast) suyingToast('请先输入政策原文链接', 'warn');
+    input.focus();
+    return;
+  }
+  if (!/^https?:\/\/.+\..+/.test(url)) {
+    if (window.suyingToast) suyingToast('链接格式不正确，请输入 http(s):// 开头的有效地址', 'error');
+    input.focus();
+    return;
+  }
+  var btn = document.getElementById('fetchUrlBtn');
+  btn.classList.add('is-loading');
+  btn.disabled = true;
+  setTimeout(function() {
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
+    document.getElementById('policyText').value = TOPIC_TEXTS.semiconductor;
+    switchInputTab('paste');
+    if (window.suyingToast) suyingToast('抓取成功，已载入政策原文（约 2,340 字）', 'ok');
+  }, 900);
+}
+
+// ── PDF 上传（mock 解析）──
+function handlePdf(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (!/\.pdf$/i.test(file.name)) {
+    if (window.suyingToast) suyingToast('仅支持 PDF 文件', 'error');
+    input.value = '';
+    return;
+  }
+  document.getElementById('policyText').value = TOPIC_TEXTS.semiconductor;
+  switchInputTab('paste');
+  if (window.suyingToast) suyingToast('已解析「' + file.name + '」，提取文本约 3,120 字', 'ok');
+  input.value = '';
+}
+
+// ── 政策库载入 ──
+function loadLibrary(key) {
+  var map = {
+    ic: TOPIC_TEXTS.semiconductor,
+    compute: TOPIC_TEXTS.ai_compute,
+    storage: TOPIC_TEXTS.storage
+  };
+  document.getElementById('policyText').value = map[key] || '';
+  switchInputTab('paste');
+  if (window.suyingToast) suyingToast('已从政策库载入原文，可点击 LLM 解读', 'ok');
+}
+
+// ── 模板 CRUD ──
+var templates = [
+  { id: 1, name: '半导体设备国产替代 · 三年行动计划', tag: '半导体', savedAt: '2026-06-21 10:24', text: TOPIC_TEXTS.semiconductor },
+  { id: 2, name: 'AI算力自主可控 · 算力网实施意见', tag: 'AI算力', savedAt: '2026-06-12 15:08', text: TOPIC_TEXTS.ai_compute },
+  { id: 3, name: '新能源储能 · 并网调度通知', tag: '储能', savedAt: '2026-05-30 09:41', text: TOPIC_TEXTS.storage }
+];
+var templateSeq = 4;
+
+function toggleTemplatePanel() {
+  var panel = document.getElementById('templatePanel');
+  var arrow = document.getElementById('templateArrow');
+  var show = panel.style.display === 'none';
+  if (show) renderTemplates();
+  panel.style.display = show ? '' : 'none';
+  arrow.textContent = show ? '▼ 收起' : '▶ 展开';
+}
+
+function renderTemplates() {
+  var panel = document.getElementById('templatePanel');
+  document.getElementById('templateCount').textContent = templates.length + ' 个';
+  if (!templates.length) {
+    panel.innerHTML = '<div class="tpl-empty">暂无保存的模板，完成解读后可点击下方「保存解读模板」</div>';
+    return;
+  }
+  var html = '';
+  templates.forEach(function(t) {
+    html += '<div class="tpl-item">' +
+      '<div><div class="tpl-name">' + t.name + '</div><div class="tpl-meta">标签: ' + t.tag + ' · 保存于 ' + t.savedAt + '</div></div>' +
+      '<div class="tpl-acts">' +
+      '<button onclick="loadTemplateById(' + t.id + ')">载入</button>' +
+      '<button class="danger" onclick="deleteTemplate(' + t.id + ')">删除</button>' +
+      '</div></div>';
   });
+  panel.innerHTML = html;
+}
+
+function loadTemplateById(id) {
+  var t = null;
+  templates.forEach(function(x) { if (x.id === id) t = x; });
+  if (!t) return;
+  document.getElementById('policyText').value = t.text;
+  switchInputTab('paste');
+  document.getElementById('simAlert').style.display = 'none';
+  if (window.suyingToast) suyingToast('已载入模板「' + t.name + '」', 'ok');
+}
+
+function deleteTemplate(id) {
+  var t = null;
+  templates.forEach(function(x) { if (x.id === id) t = x; });
+  if (!t) return;
+  suyingConfirm('确认删除模板「' + t.name + '」？删除后不可恢复。', function() {
+    templates = templates.filter(function(x) { return x.id !== id; });
+    renderTemplates();
+    if (window.suyingToast) suyingToast('模板已删除', 'ok');
+  }, { title: '删除模板', okText: '确认删除', danger: true });
+}
+
+function saveTemplate() {
+  var name = '半导体政策解读模板-' + templateSeq;
+  templates.push({
+    id: templateSeq++,
+    name: name,
+    tag: '半导体',
+    savedAt: '2026-06-26 ' + new Date().toTimeString().slice(0, 5),
+    text: document.getElementById('policyText').value
+  });
+  var panel = document.getElementById('templatePanel');
+  document.getElementById('templateCount').textContent = templates.length + ' 个';
+  if (panel.style.display !== 'none') renderTemplates();
+  if (window.suyingToast) suyingToast('解读模板已保存：' + name, 'ok');
 }
 
 // ── Star Rating Click ──
@@ -446,30 +585,85 @@ document.getElementById('starRating').addEventListener('click', function(e) {
 // ── Direction Edit Tracking ──
 document.querySelectorAll('.dc-title, .dc-desc').forEach(el => {
   el.addEventListener('input', function() {
-    const card = this.closest('.dc-card');
-    if (!card.classList.contains('edited')) {
-      card.classList.add('edited');
-      if (!card.querySelector('.dc-edit-tag')) {
-        const tag = document.createElement('span');
-        tag.className = 'dc-edit-tag';
-        tag.textContent = '已修正';
-        card.appendChild(tag);
-      }
-    }
+    markEdited(this.closest('.dc-card'));
   });
 });
 
+function markEdited(card) {
+  if (!card || card.classList.contains('edited')) return;
+  card.classList.add('edited');
+  if (!card.querySelector('.dc-edit-tag')) {
+    const tag = document.createElement('span');
+    tag.className = 'dc-edit-tag';
+    tag.textContent = '已修正';
+    card.appendChild(tag);
+  }
+}
+
+// ── 方向卡原始内容快照（用于单卡/全部还原）──
+var directionOriginals = new Map();
+function snapshotDirection(card) {
+  directionOriginals.set(card, {
+    title: card.querySelector('.dc-title').textContent,
+    desc: card.querySelector('.dc-desc').textContent
+  });
+}
+document.querySelectorAll('#directionCards .dc-card').forEach(snapshotDirection);
+// 方向 3 的 LLM 原始输出不含用户修正备注
+(function() {
+  var cards = document.querySelectorAll('#directionCards .dc-card');
+  if (cards[2]) {
+    directionOriginals.set(cards[2], {
+      title: '先进封装技术突破',
+      desc: '先进封装列入国家重大科技专项。'
+    });
+  }
+})();
+
+function restoreDirection(card) {
+  var orig = directionOriginals.get(card);
+  if (orig) {
+    card.querySelector('.dc-title').textContent = orig.title;
+    card.querySelector('.dc-desc').textContent = orig.desc;
+  }
+  card.classList.remove('edited');
+  var tag = card.querySelector('.dc-edit-tag');
+  if (tag) tag.remove();
+}
+
+function revertDirection(btn) {
+  var card = btn.closest('.dc-card');
+  restoreDirection(card);
+  if (window.suyingToast) suyingToast('已还原为 LLM 原始结果', 'ok');
+}
+
+function renumberDirections() {
+  document.querySelectorAll('#directionCards .dc-card').forEach(function(card, i) {
+    card.querySelector('.dc-index').textContent = '方向 ' + (i + 1);
+  });
+}
+
+function deleteDirection(btn) {
+  var card = btn.closest('.dc-card');
+  var title = card.querySelector('.dc-title').textContent.trim();
+  suyingConfirm('确认删除方向「' + title + '」？', function() {
+    directionOriginals.delete(card);
+    card.remove();
+    renumberDirections();
+    if (window.suyingToast) suyingToast('方向「' + title + '」已删除', 'ok');
+  }, { title: '删除方向', okText: '确认删除', danger: true });
+}
+
 // ── Revert All ──
 function revertAll() {
-  document.querySelectorAll('.dc-card.edited').forEach(card => {
-    card.classList.remove('edited');
-    const tag = card.querySelector('.dc-edit-tag');
-    if (tag) tag.remove();
+  document.querySelectorAll('#directionCards .dc-card').forEach(function(card) {
+    if (card.classList.contains('edited')) restoreDirection(card);
   });
   const strengthTag = document.querySelector('.strength-edit-tag');
   if (strengthTag) strengthTag.remove();
   document.querySelectorAll('.star').forEach((s, i) => s.classList.toggle('filled', i < 4));
   document.querySelector('.strength-label').textContent = '4/5 — 强力政策';
+  if (window.suyingToast) suyingToast('已全部还原为 LLM 原始结果', 'ok');
 }
 
 // ── Add Direction ──
@@ -485,32 +679,115 @@ function addDirection() {
     <div class="dc-title" contenteditable="true">新方向标题</div>
     <div class="dc-desc" contenteditable="true">请输入方向描述...</div>
     <div class="dc-actions">
-      <button class="revert">↩ 还原</button>
-      <button class="delete" onclick="this.closest('.dc-card').remove()">✕ 删除</button>
+      <button class="revert" onclick="revertDirection(this)">↩ 还原</button>
+      <button class="delete" onclick="deleteDirection(this)">✕ 删除</button>
     </div>
   `;
   container.insertBefore(card, addBtn);
+  snapshotDirection(card);
+  card.querySelectorAll('.dc-title, .dc-desc').forEach(function(el) {
+    el.addEventListener('input', function() { markEdited(card); });
+  });
+  if (window.suyingToast) suyingToast('已新增方向 ' + idx + '，可直接编辑内容', 'info');
 }
 
-// ── Placeholder actions ──
+// ── LLM 解读 ──
 function analyze() {
-  document.getElementById('simAlert').style.display = 'flex';
+  if (currentInputTab === 'paste' && !document.getElementById('policyText').value.trim()) {
+    if (window.suyingToast) suyingToast('请先输入政策原文，或点击热门题材快速载入', 'warn');
+    return;
+  }
+  if (currentInputTab === 'url') {
+    if (window.suyingToast) suyingToast('请先点击「抓取网页内容」载入原文', 'warn');
+    return;
+  }
+  if (currentInputTab === 'pdf') {
+    if (window.suyingToast) suyingToast('请先上传 PDF 文件', 'warn');
+    return;
+  }
+  if (currentInputTab === 'library') {
+    if (window.suyingToast) suyingToast('请先从政策库载入一条政策', 'warn');
+    return;
+  }
+  const btn = document.getElementById('analyzeBtn');
+  if (btn.classList.contains('is-loading')) return;
+  btn.classList.add('is-loading');
+  btn.disabled = true;
+  setTimeout(() => {
+    btn.classList.remove('is-loading');
+    btn.disabled = false;
+    document.getElementById('simAlert').style.display = 'flex';
+    if (window.suyingToast) suyingToast('LLM 解读完成，已生成 3 个方向', 'ok');
+  }, 1400);
 }
 
 function clearInput() {
   document.getElementById('policyText').value = '';
+  document.getElementById('urlInput').value = '';
+  document.querySelectorAll('.topic-chip').forEach(function(c) { c.classList.remove('active'); });
+  document.getElementById('simAlert').style.display = 'none';
+  if (window.suyingToast) suyingToast('已清空输入', 'info');
 }
 
-function goToDecompose() {}
+// ── 跨页跳转：产业链解构 ──
+function goToDecompose() {
+  location.href = '4.2 chain-decompose-preview.html';
+}
 
-function saveTemplate() {}
-
+// ── 相似模板提示链路 ──
 function loadTemplate() {
-  document.getElementById('simAlert').style.display = 'none';
+  // 相似度提示中的「载入模板」：载入最相似的已保存模板
+  if (templates.length) {
+    loadTemplateById(templates[0].id);
+  } else {
+    document.getElementById('simAlert').style.display = 'none';
+  }
 }
 
 function dismissSimilar() {
   document.getElementById('simAlert').style.display = 'none';
+  if (window.suyingToast) suyingToast('已忽略相似模板提示', 'info');
+}
+
+// ── 映射表：上市公司列表 / 概念详情弹窗 ──
+var STOCK_LISTS = {
+  '半导体设备': ['002371 北方华创', '688012 中微公司', '688072 拓荆科技', '688082 盛美上海', '603690 至纯科技', '300567 精测电子', '688037 芯源微', '600641 万业企业', '688120 华海清科', '300604 长川科技', '688361 中科飞测', '688409 富创精密'],
+  'AI芯片+算力': ['688041 海光信息', '688256 寒武纪', '300474 景嘉微', '688047 龙芯中科', '688008 澜起科技', '603019 中科曙光', '000977 浪潮信息', '601138 工业富联'],
+  '封装测试': ['600584 长电科技', '002156 通富微电', '002185 华天科技', '688362 甬矽电子', '603005 晶方科技', '688216 气派科技']
+};
+
+var CONCEPT_INFO = {
+  'ths_半导体设备': '同花顺概念板块：半导体设备\n成分股 12 只 · 覆盖刻蚀 / 薄膜沉积 / 清洗 / 检测等设备环节\n近20日板块涨幅: +8.4% · 板块强度评分: 74',
+  'ths_AI芯片': '同花顺概念板块：AI芯片\n成分股 8 只 · 覆盖 GPU / ASIC / 存储接口等国产算力芯片\n近20日板块涨幅: +11.2% · 板块强度评分: 81',
+  'ths_先进封装': '同花顺概念板块：先进封装\n成分股 6 只 · 覆盖 Chiplet / 3D 封装 / 扇出型封装等方向\n近20日板块涨幅: +5.6% · 板块强度评分: 62'
+};
+
+function showInfoDlg(title, bodyText) {
+  var mask = document.createElement('div');
+  mask.className = 'dlg-mask';
+  mask.innerHTML =
+    '<div class="dlg" role="dialog" aria-modal="true">' +
+      '<div class="dlg-title"></div>' +
+      '<div class="dlg-body"></div>' +
+      '<div class="dlg-ops"><button class="btn dlg-cancel">关闭</button></div>' +
+    '</div>';
+  mask.querySelector('.dlg-title').textContent = title;
+  mask.querySelector('.dlg-body').textContent = bodyText;
+  function close() { mask.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e) { if (e.key === 'Escape') close(); }
+  mask.querySelector('.dlg-cancel').addEventListener('click', close);
+  mask.addEventListener('click', function(e) { if (e.target === mask) close(); });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(mask);
+}
+
+function showStockList(industry) {
+  var stocks = STOCK_LISTS[industry] || [];
+  showInfoDlg(industry + ' · 上市公司 ' + stocks.length + ' 家', stocks.join('\n'));
+}
+
+function showConcept(code) {
+  showInfoDlg('概念详情 · ' + code, CONCEPT_INFO[code] || code);
 }
 </script>
 <script src="assets/preview-interactions.js"></script>

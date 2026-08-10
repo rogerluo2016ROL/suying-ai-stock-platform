@@ -58,6 +58,35 @@ export interface TrainingScheduleResponse {
   last_job_status?: string | null
 }
 
+/** POST /training/run 训练超参（对齐 training-service TrainingParams）。 */
+export interface TrainingRunParams {
+  model_type: string
+  horizon?: number
+  lookback?: number
+  n_trials?: number
+  cv_folds?: number
+  early_stopping_rounds?: number
+  learning_rate?: number | null
+  max_depth?: number | null
+  num_leaves?: number | null
+  subsample?: number | null
+  colsample_bytree?: number | null
+  data_start_date?: string | null
+  data_end_date?: string | null
+  test_size?: number
+}
+
+export interface TrainingRunRequest {
+  params: TrainingRunParams
+  auto_deploy?: boolean
+}
+
+export interface TrainingRunResponse {
+  job_id: string
+  status: string
+  created_at: string
+}
+
 export interface TrainingModelActionResponse {
   model_id: string
   message: string

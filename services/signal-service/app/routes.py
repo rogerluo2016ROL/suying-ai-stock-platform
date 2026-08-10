@@ -44,6 +44,9 @@ from app.routers.data import (  # noqa: E402,F401 — re-export 兼容层
     DATA_STATUS_DATE_COLUMNS, DATA_STATUS_FALLBACK_DATE_COLUMNS,
     _default_sync_schedules,
 )
+from app.routers.sentiment import (  # noqa: E402,F401 — re-export 兼容层
+    sentiment_index, sentiment_history, sentiment_alerts,
+)
 
 
 def _trigger_sync_via_data_service(table_key: str, days: int) -> dict | None:

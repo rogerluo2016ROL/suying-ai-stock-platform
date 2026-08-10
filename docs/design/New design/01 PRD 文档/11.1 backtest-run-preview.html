@@ -4,50 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 回测分析 — 回测运行</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-/* SubTabBar */
-.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
-.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
-.stb a:hover{color:var(--fg)}
-.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
-
+/* ===== 页面私有样式（token / reset / 壳样式见 assets/app.css） ===== */
 .page-head h1{font-size:21px;font-weight:700;margin-bottom:4px}
 .page-head .sub{font-size:12.5px;color:var(--muted);margin-bottom:6px}
 
@@ -100,9 +59,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 
 .footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
 .footer-bar .sep{width:1px;height:12px;background:var(--border)}
-
-.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
-.toast.show{opacity:1;transform:translateY(0)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -144,19 +100,19 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
           <div class="param-panel">
             <div class="param-group">
               <label>策略选择</label>
-              <select><option>龙头趋势V2</option><option>匪爷短线</option><option>网格交易</option><option>MACD金叉</option></select>
+              <select id="btStrat"><option>龙头趋势V2</option><option>匪爷短线</option><option>网格交易</option><option>MACD金叉</option></select>
             </div>
             <div class="param-group">
               <label>基准指数</label>
-              <select><option>沪深300</option><option>中证500</option><option>无</option></select>
+              <select id="btBench"><option>沪深300</option><option>中证500</option><option>无</option></select>
             </div>
             <div class="param-group">
               <label>起始日期</label>
-              <input type="text" value="2025-01-01"/>
+              <input type="date" id="btStart" value="2025-01-01"/>
             </div>
             <div class="param-group">
               <label>结束日期</label>
-              <input type="text" value="2026-06-25"/>
+              <input type="date" id="btEnd" value="2026-06-25"/>
             </div>
             <div class="param-group" style="width:140px">
               <label>TopN <span class="slider-val">20</span></label>
@@ -164,11 +120,11 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
             <div class="param-group">
               <label>手续费</label>
-              <input type="text" value="0.03%" style="width:80px"/>
+              <input type="text" id="btFee" value="0.03%" style="width:80px"/>
             </div>
             <div class="param-group">
               <label>滑点</label>
-              <input type="text" value="0.01%" style="width:80px"/>
+              <input type="text" id="btSlip" value="0.01%" style="width:80px"/>
             </div>
             <button class="btn-run" id="btnRun" onclick="runBacktest()">▶️ 开始回测</button>
           </div>
@@ -182,14 +138,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
           <!-- Core Metrics: 8-card grid -->
           <div class="section-title">📊 核心指标</div>
           <div class="metrics-grid">
-            <div class="metric-card"><div class="mc-label">年化收益</div><div class="mc-value" style="color:var(--up)">+32.5%</div></div>
-            <div class="metric-card"><div class="mc-label">最大回撤</div><div class="mc-value" style="color:var(--down)">-12.3%</div></div>
-            <div class="metric-card"><div class="mc-label">夏普比率</div><div class="mc-value" style="color:var(--accent)">2.15</div></div>
-            <div class="metric-card"><div class="mc-label">胜率</div><div class="mc-value" style="color:var(--fg)">68.1%</div></div>
-            <div class="metric-card"><div class="mc-label">盈亏比</div><div class="mc-value" style="color:var(--fg)">2.80</div></div>
-            <div class="metric-card"><div class="mc-label">日均换手</div><div class="mc-value" style="color:var(--fg)">15.0%</div></div>
-            <div class="metric-card"><div class="mc-label">Calmar</div><div class="mc-value" style="color:var(--accent)">2.64</div></div>
-            <div class="metric-card"><div class="mc-label">交易次数</div><div class="mc-value" style="color:var(--fg)">47</div></div>
+            <div class="metric-card"><div class="mc-label">年化收益</div><div class="mc-value" id="mvAnn" style="color:var(--up)">+32.5%</div></div>
+            <div class="metric-card"><div class="mc-label">最大回撤</div><div class="mc-value" id="mvMdd" style="color:var(--down)">-12.3%</div></div>
+            <div class="metric-card"><div class="mc-label">夏普比率</div><div class="mc-value" id="mvSharpe" style="color:var(--accent)">2.15</div></div>
+            <div class="metric-card"><div class="mc-label">胜率</div><div class="mc-value" id="mvWin" style="color:var(--fg)">68.1%</div></div>
+            <div class="metric-card"><div class="mc-label">盈亏比</div><div class="mc-value" id="mvPl" style="color:var(--fg)">2.80</div></div>
+            <div class="metric-card"><div class="mc-label">日均换手</div><div class="mc-value" id="mvTurn" style="color:var(--fg)">15.0%</div></div>
+            <div class="metric-card"><div class="mc-label">Calmar</div><div class="mc-value" id="mvCalmar" style="color:var(--accent)">2.64</div></div>
+            <div class="metric-card"><div class="mc-label">交易次数</div><div class="mc-value" id="mvTrades" style="color:var(--fg)">47</div></div>
           </div>
       
           <!-- Equity Curve Chart -->
@@ -197,10 +153,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             <div class="cc-header">📈 权益曲线 <span style="font-size:10px;color:var(--muted);font-weight:400">策略权益 + 基准 + 回撤区域</span></div>
             <div class="cc-body"><div id="equityChart" style="width:100%;height:100%"></div></div>
             <div class="cc-footer">
-              <span>累计 <b style="color:var(--up)">+42.8%</b></span><span class="sep"></span>
-              <span>年化 <b style="color:var(--accent)">+26.3%</b></span><span class="sep"></span>
-              <span>基准 <b style="color:var(--muted)">+8.2%</b></span><span class="sep"></span>
-              <span>最大回撤 <b style="color:var(--down)">-15.3%</b></span>
+              <span>累计 <b id="ftCum" style="color:var(--up)">+42.8%</b></span><span class="sep"></span>
+              <span>年化 <b id="ftAnn" style="color:var(--up)">+32.5%</b></span><span class="sep"></span>
+              <span id="ftBenchWrap">基准 <b id="ftBench" style="color:var(--muted)">+8.2%</b></span><span class="sep" id="ftBenchSep"></span>
+              <span>最大回撤 <b id="ftMdd" style="color:var(--down)">-12.3%</b></span>
             </div>
           </div>
       
@@ -247,35 +203,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
 <script>
-function showToast(msg){
-  var t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast show';
-  clearTimeout(t._tid);t._tid=setTimeout(function(){t.className='toast';},2200);
-}
+var eChart=null,hChart=null;
 
-function runBacktest(){
-  var btn=document.getElementById('btnRun');
-  var pw=document.getElementById('progressWrap');
-  var fill=document.getElementById('progressFill');
-  var txt=document.getElementById('progressText');
-  btn.disabled=true;
-  pw.classList.add('show');
-  var p=0;
-  var timer=setInterval(function(){
-    p+=Math.random()*15+5;
-    if(p>100)p=100;
-    fill.style.width=p+'%';
-    txt.textContent=Math.round(p)+'%';
-    if(p>=100){clearInterval(timer);btn.disabled=false;setTimeout(function(){pw.classList.remove('show');showToast('✅ 回测完成 · 结果已更新');},500);}
-  },200);
-}
-
-// ---- ECharts: Equity Curve (strategy + benchmark + drawdown area) ----
-window.addEventListener('DOMContentLoaded',function(){
-  var eChart=echarts.init(document.getElementById('equityChart'),null,{renderer:'svg'});
-  var hChart=echarts.init(document.getElementById('heatmapChart'),null,{renderer:'svg'});
-
-  // Generate mock data
+// ---- Mock 数据生成（权益曲线 / 月度热力） ----
+function genEquityData(){
   var dates=[],ret=[],bench=[],dd=[];
   var cumR=0,cumB=0,maxN=1,d=new Date('2025-01-01');
   for(var i=0;i<360;i++){
@@ -292,25 +223,141 @@ window.addEventListener('DOMContentLoaded',function(){
     bench.push(+(cumB*100).toFixed(2));
     dd.push(+ddVal.toFixed(2));
   }
+  return {dates:dates,ret:ret,bench:bench,dd:dd};
+}
+function genHeatData(){
+  var hData=[];
+  for(var yi=0;yi<2;yi++){
+    for(var mi=0;mi<12;mi++){
+      if(yi===0&&mi>5)continue;
+      hData.push([mi,yi,+(Math.random()*20-10).toFixed(1)]);
+    }
+  }
+  return hData;
+}
+
+// ---- 回测完成：用新 mock 数据真实刷新图表与指标 ----
+function regenResults(){
+  var strat=document.getElementById('btStrat').value;
+  var benchSel=document.getElementById('btBench').value;
+  var g=genEquityData();
+  var series=[
+    {
+      name:'策略收益',type:'line',data:g.ret,smooth:true,
+      lineStyle:{color:'#3d8bff',width:2},
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(46,194,126,.15)'},{offset:1,color:'rgba(46,194,126,.02)'}]}},
+      markLine:{silent:true,symbol:'none',data:[{yAxis:0,lineStyle:{color:'#5e6a7d',type:'dashed'}}]}
+    },
+    {
+      name:'回撤',type:'line',data:g.dd,smooth:true,
+      lineStyle:{color:'#ff4d4f',width:1,opacity:.6},
+      areaStyle:{color:'rgba(255,77,79,0.12)'}
+    }
+  ];
+  var legendData=['策略收益','回撤'];
+  if(benchSel!=='无'){
+    series.splice(1,0,{
+      name:benchSel,type:'line',data:g.bench,smooth:true,
+      lineStyle:{color:'#5e6a7d',width:1.5,type:'dashed'}
+    });
+    legendData.splice(1,0,benchSel);
+  }
+  eChart.setOption({
+    xAxis:{data:g.dates},
+    legend:{data:legendData},
+    series:series
+  },{replaceMerge:['series','legend']});
+  hChart.setOption({series:[{data:genHeatData()}]});
+
+  // 指标卡 + footer 联动更新（围绕基准值抖动）
+  var ann=+(26+Math.random()*12).toFixed(1);
+  var mdd=+(9+Math.random()*7).toFixed(1);
+  var sharpe=+(1.7+Math.random()*0.9).toFixed(2);
+  var win=+(62+Math.random()*10).toFixed(1);
+  var pl=+(2.3+Math.random()*0.9).toFixed(2);
+  var turn=+(12+Math.random()*6).toFixed(1);
+  var calmar=+(ann/mdd).toFixed(2);
+  var trades=40+Math.floor(Math.random()*15);
+  document.getElementById('mvAnn').textContent='+'+ann+'%';
+  document.getElementById('mvMdd').textContent='-'+mdd+'%';
+  document.getElementById('mvSharpe').textContent=sharpe;
+  document.getElementById('mvWin').textContent=win+'%';
+  document.getElementById('mvPl').textContent=pl;
+  document.getElementById('mvTurn').textContent=turn+'%';
+  document.getElementById('mvCalmar').textContent=calmar;
+  document.getElementById('mvTrades').textContent=trades;
+  document.getElementById('ftCum').textContent='+'+(ann*1.31).toFixed(1)+'%';
+  document.getElementById('ftAnn').textContent='+'+ann+'%';
+  document.getElementById('ftMdd').textContent='-'+mdd+'%';
+  var bw=document.getElementById('ftBenchWrap');
+  var bs=document.getElementById('ftBenchSep');
+  if(benchSel==='无'){bw.style.display='none';bs.style.display='none';}
+  else{bw.style.display='';bs.style.display='';bw.firstChild.textContent=benchSel+' ';}
+}
+
+function runBacktest(){
+  // ---- 参数校验：日期区间 + 百分比格式 ----
+  var start=document.getElementById('btStart').value;
+  var end=document.getElementById('btEnd').value;
+  if(!start||!end){suyingToast('请选择完整的回测起止日期','error');return;}
+  if(start>end){suyingToast('起始日期不能晚于结束日期','error');return;}
+  var fee=document.getElementById('btFee').value.trim();
+  var slip=document.getElementById('btSlip').value.trim();
+  var pctRe=/^\d+(\.\d+)?%$/;
+  if(!pctRe.test(fee)){suyingToast('手续费格式非法，应为百分比（如 0.03%）','error');return;}
+  if(!pctRe.test(slip)){suyingToast('滑点格式非法，应为百分比（如 0.01%）','error');return;}
+
+  var btn=document.getElementById('btnRun');
+  var pw=document.getElementById('progressWrap');
+  var fill=document.getElementById('progressFill');
+  var txt=document.getElementById('progressText');
+  btn.disabled=true;
+  pw.classList.add('show');
+  var p=0;
+  var timer=setInterval(function(){
+    p+=Math.random()*15+5;
+    if(p>100)p=100;
+    fill.style.width=p+'%';
+    txt.textContent=Math.round(p)+'%';
+    if(p>=100){
+      clearInterval(timer);
+      btn.disabled=false;
+      setTimeout(function(){
+        pw.classList.remove('show');
+        fill.style.width='0%';txt.textContent='0%';
+        regenResults();
+        suyingToast('✅ 回测完成 · '+document.getElementById('btStrat').value+' 结果已更新','ok');
+      },500);
+    }
+  },200);
+}
+
+// ---- ECharts: Equity Curve (strategy + benchmark + drawdown area) ----
+window.addEventListener('DOMContentLoaded',function(){
+  var theme=(window.suyingEchartsTheme?suyingEchartsTheme():'dark');
+  eChart=echarts.init(document.getElementById('equityChart'),theme,{renderer:'svg'});
+  hChart=echarts.init(document.getElementById('heatmapChart'),theme,{renderer:'svg'});
+
+  var g=genEquityData();
 
   // Equity curve with drawdown area
   eChart.setOption({
     grid:{left:65,right:25,top:15,bottom:40},
-    xAxis:{type:'category',data:dates,axisLabel:{fontSize:9,color:'#5e6a7d',interval:40}},
+    xAxis:{type:'category',data:g.dates,axisLabel:{fontSize:9,color:'#5e6a7d',interval:40}},
     yAxis:{type:'value',name:'累计收益 %',axisLabel:{fontSize:9,color:'#5e6a7d'},splitLine:{lineStyle:{color:'#1f2733'}}},
     series:[
       {
-        name:'策略收益',type:'line',data:ret,smooth:true,
+        name:'策略收益',type:'line',data:g.ret,smooth:true,
         lineStyle:{color:'#3d8bff',width:2},
         areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(46,194,126,.15)'},{offset:1,color:'rgba(46,194,126,.02)'}]}},
         markLine:{silent:true,symbol:'none',data:[{yAxis:0,lineStyle:{color:'#5e6a7d',type:'dashed'}}]}
       },
       {
-        name:'基准',type:'line',data:bench,smooth:true,
+        name:'沪深300',type:'line',data:g.bench,smooth:true,
         lineStyle:{color:'#5e6a7d',width:1.5,type:'dashed'}
       },
       {
-        name:'回撤',type:'line',data:dd,smooth:true,
+        name:'回撤',type:'line',data:g.dd,smooth:true,
         lineStyle:{color:'#ff4d4f',width:1,opacity:.6},
         areaStyle:{color:'rgba(255,77,79,0.12)'}
       }
@@ -324,19 +371,12 @@ window.addEventListener('DOMContentLoaded',function(){
   // Monthly heatmap
   var months=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
   var years=['2026','2025'];
-  var hData=[];
-  for(var yi=0;yi<2;yi++){
-    for(var mi=0;mi<12;mi++){
-      if(yi===0&&mi>5)continue;
-      hData.push([mi,yi,+(Math.random()*20-10).toFixed(1)]);
-    }
-  }
   hChart.setOption({
     grid:{left:50,right:20,top:10,bottom:25},
     xAxis:{type:'category',data:months,axisLabel:{fontSize:9,color:'#9aa7b8'}},
     yAxis:{type:'category',data:years,axisLabel:{fontSize:9,color:'#9aa7b8'},inverse:true},
     visualMap:{min:-10,max:10,calculable:true,orient:'horizontal',left:'center',bottom:0,inRange:{color:['#2ec27e','#1b2330','#ff4d4f']},textStyle:{color:'#9aa7b8',fontSize:9}},
-    series:[{type:'heatmap',data:hData,label:{show:true,fontSize:9,fontFamily:'"SF Mono","JetBrains Mono",ui-monospace,monospace',formatter:function(p){return p.value[2]+'%'}},emphasis:{itemStyle:{shadowBlur:10}}}],
+    series:[{type:'heatmap',data:genHeatData(),label:{show:true,fontSize:9,fontFamily:'"SF Mono","JetBrains Mono",ui-monospace,monospace',formatter:function(p){return p.value[2]+'%'}},emphasis:{itemStyle:{shadowBlur:10}}}],
     tooltip:{formatter:function(p){return p.value[0]+' '+p.value[1]+'年<br/>收益: '+p.value[2]+'%'}},
     backgroundColor:'transparent'
   });

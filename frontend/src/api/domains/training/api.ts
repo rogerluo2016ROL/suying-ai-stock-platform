@@ -6,10 +6,15 @@ import type {
   TrainingModelActionResponse,
   TrainingHistoryResponse,
   TrainingScheduleResponse,
+  TrainingRunRequest,
+  TrainingRunResponse,
 } from './types'
 
 /** Training 域 API (从 client.ts 拆出, C 域拆分)。 */
 export const trainingApi = {
+  runTraining: (body: TrainingRunRequest): Promise<AxiosResponse<TrainingRunResponse>> =>
+    api.post('/training/run', body),
+
   getModels: (params: { page?: number; page_size?: number; model_type?: string; stage?: string } = {}): Promise<AxiosResponse<TrainingModelsResponse>> =>
     api.get('/training/models', { params: { page: 1, page_size: 20, ...params } }),
 

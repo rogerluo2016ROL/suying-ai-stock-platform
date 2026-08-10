@@ -40,6 +40,36 @@ export interface ScoreDimension {
   weight: number
 }
 
+export interface WorkbenchModel {
+  name?: string
+  philosophy?: string
+  score_dimensions?: ScoreDimension[]
+}
+
+/** 链路模板 key（chain/deconstruct template 参数，default = 不传） */
+export type ChainTemplateKey =
+  | 'default'
+  | 'complex_tech'
+  | 'ai_compute_infrastructure'
+  | 'advanced_packaging_chiplet'
+  | 'semiconductor_equipment_materials'
+  | 'lithography_equipment_chain'
+  | 'data_ai_application_commercialization'
+  | 'defense_informatization_unmanned'
+  | 'intelligent_driving_v2x'
+  | 'controlled_fusion_materials'
+  | 'industrial_machine_tools_cnc'
+  | 'innovative_drug_cxo_adc_glp1'
+  | 'flexible_dc_offshore_wind_grid'
+  | 'rare_earth_minor_metals_security'
+  | 'display_oled_microled'
+  | 'domestic_os_database_industrial_software'
+  | 'huawei_ascend_ai_ecosystem'
+  | 'offshore_wind_subsea_cable'
+  | 'new_power_system_grid'
+  | 'embodied_intelligence'
+  | 'storage_chips'
+
 export interface CandidateCompany {
   code: string
   name?: string

@@ -3,32 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · P0主链路</title>
 <style class="legacy-page-style">
-:root{
-  --bg:#f5f8fd;--surface:#fff;--surface-2:#f7faff;--elevated:#eef5ff;
-  --border:#dfe8f5;--border-2:#c8d7ea;--fg:#1e293b;--fg-2:#64748b;--muted:#94a3b8;
-  --accent:#3d8bff;--accent-dim:rgba(61,139,255,.12);
-  --up:#ff4d4f;--up-bg:rgba(255,77,79,.1);--down:#2ec27e;--down-bg:rgba(46,194,126,.1);
-  --warn:#f5a623;--warn-bg:rgba(245,166,35,.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px;--header-h:52px;--radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.up{color:var(--up)}.down{color:var(--down)}.neu{color:var(--accent)}.warn{color:var(--warn)}
-.app{display:flex;min-height:100vh}.main{flex:1;margin-left:var(--sidebar-w);min-width:0}.content{padding:16px 20px 28px}
+.warn{color:var(--warn)}
 .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:18px 20px;background:linear-gradient(135deg,rgba(61,139,255,.12),rgba(46,194,126,.08));border:1px solid var(--border);border-radius:var(--radius);margin-bottom:12px}
 .hero h1{font-size:24px;line-height:1.2;margin-bottom:6px}.hero p{color:var(--fg-2)}
-.ctx-card{min-width:420px;background:rgba(255,255,255,.72);border:1px solid var(--border);border-radius:8px;padding:12px}
+.ctx-card{min-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
 .ctx-row{display:grid;grid-template-columns:92px 1fr;gap:8px;font-size:12px}.ctx-row+.ctx-row{margin-top:5px}.ctx-row span:first-child{color:var(--muted)}
 .flow-stepper{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
 .flow-btn{height:74px;text-align:left;border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:10px 12px;cursor:pointer;color:var(--fg);transition:.14s}
 .flow-btn:hover{border-color:var(--accent);background:var(--surface-2)}
-.flow-btn.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);background:linear-gradient(135deg,rgba(61,139,255,.12),rgba(255,255,255,.9))}
+.flow-btn.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim);background:linear-gradient(135deg,var(--accent-dim),var(--surface))}
 .flow-btn .no{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);font-family:var(--font-mono);font-weight:700;color:var(--muted);margin-right:8px}
 .flow-btn.active .no{background:var(--accent);border-color:var(--accent);color:#fff}.flow-btn strong{font-size:14px}.flow-btn p{font-size:11px;color:var(--fg-2);margin-top:6px}
 .layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(420px,.7fr);gap:12px}

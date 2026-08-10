@@ -4,43 +4,10 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 结算报告</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="icon" href="data:," />
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:16px 20px 28px}
+.warn{color:var(--warn)}
 
 /* Pill Tabs */
 .pill-tabs{display:flex;gap:2px;background:var(--surface-2);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content}
@@ -308,7 +275,7 @@ function updateSelect(planId){
 }
 
 // ---- ECharts Settlement ----
-var chartSettlement = echarts.init(document.getElementById('chart-settlement'));
+var chartSettlement = echarts.init(document.getElementById('chart-settlement'), (window.suyingEchartsTheme?suyingEchartsTheme():'dark'));
 
 function buildSettlementChart(report){
   var days = report.summary.holdingDays + 1;
@@ -419,40 +386,51 @@ function switchReport(){
 }
 
 // ---- Time Filter ----
+// 缓存全部方案选项，筛选时动态重建 <option>（Safari 不支持 option display:none）
+var allPlanOptions = [];
+(function(){
+  var opts = document.getElementById('planSelect').options;
+  for (var i = 0; i < opts.length; i++){
+    allPlanOptions.push({ value: opts[i].value, text: opts[i].textContent });
+  }
+})();
+
 function setTimeFilter(filter, btn){
   document.querySelectorAll('.time-chip').forEach(function(c){ c.classList.remove('active'); });
   btn.classList.add('active');
 
-  // Simulate filtering the plan dropdown options based on time range
-  var options = document.getElementById('planSelect').options;
+  var sel = document.getElementById('planSelect');
+  var prevValue = sel.value;
   var now = new Date(2026, 5, 26); // "today" June 26
 
-  for (var i = 0; i < options.length; i++){
-    var opt = options[i];
-    var dateStr = opt.textContent.match(/已结算 (\d{2}-\d{2})/);
-    if (!dateStr) continue;
-    var parts = dateStr[1].split('-');
-    var settleDate = new Date(2026, parseInt(parts[0]) - 1, parseInt(parts[1]));
-
+  var html = '';
+  allPlanOptions.forEach(function(o){
+    var dateStr = o.text.match(/已结算 (\d{2})-(\d{2})/);
+    if (!dateStr) return;
+    var settleDate = new Date(2026, parseInt(dateStr[1], 10) - 1, parseInt(dateStr[2], 10));
     var diffDays = Math.floor((now - settleDate) / (1000 * 60 * 60 * 24));
     var show = true;
     if (filter === 'week') show = diffDays <= 7;
     else if (filter === 'month') show = diffDays <= 30;
+    if (show) html += '<option value="' + o.value + '">' + o.text + '</option>';
+  });
+  sel.innerHTML = html;
 
-    opt.style.display = show ? '' : 'none';
+  // 原选项仍在筛选结果中则保持选中，否则回落到第一项并刷新报告
+  var stillThere = false;
+  for (var i = 0; i < sel.options.length; i++){
+    if (sel.options[i].value === prevValue){ stillThere = true; break; }
   }
-
-  // If current selection is hidden, select the first visible option
-  if (document.getElementById('planSelect').selectedOptions[0].style.display === 'none'){
-    for (var i = 0; i < options.length; i++){
-      if (options[i].style.display !== 'none'){
-        document.getElementById('planSelect').value = options[i].value;
-        break;
-      }
-    }
+  if (stillThere){
+    sel.value = prevValue;
+  } else {
     switchReport();
   }
 }
+
+// 内联 onchange/onclick 需要全局可见
+window.switchReport = switchReport;
+window.setTimeFilter = setTimeFilter;
 
 // ---- Init ----
 switchReport();

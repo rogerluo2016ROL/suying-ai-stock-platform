@@ -38,8 +38,8 @@ vi.mock('../api/client', () => ({
   injectPlatformContext: vi.fn(),
 }))
 
-vi.mock('../api/liveTrade', () => ({
-  liveTradeApi: liveTradeApiMock,
+vi.mock('../api/domains/trade/api', () => ({
+  tradeApi: liveTradeApiMock,
 }))
 
 vi.mock('../pages/Dashboard', () => ({ default: () => <div>Dashboard page</div> }))

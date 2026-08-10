@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Diagnosis from '../pages/Diagnosis'
 import Training from '../pages/Training'
@@ -6,7 +6,7 @@ import ModelRegistry from '../pages/ModelRegistry'
 import RuntimeStatus from '../pages/RuntimeStatus'
 import PlatformUpgrade from '../pages/PlatformUpgrade'
 import { diagnosisApi, healthApi, trainingApi } from '../api/client'
-import { liveTradeApi } from '../api/liveTrade'
+import { tradeApi } from '../api/domains/trade/api'
 
 vi.mock('../api/client', () => ({
   healthApi: {
@@ -21,6 +21,7 @@ vi.mock('../api/client', () => ({
     getModels: vi.fn(),
     getSchedule: vi.fn(),
     rollbackModel: vi.fn(),
+    runTraining: vi.fn(),
   },
   diagnosisApi: {
     getHistory: vi.fn(),
@@ -30,8 +31,8 @@ vi.mock('../api/client', () => ({
   },
 }))
 
-vi.mock('../api/liveTrade', () => ({
-  liveTradeApi: {
+vi.mock('../api/domains/trade/api', () => ({
+  tradeApi: {
     getBrokerStatus: vi.fn(),
     getRiskConfig: vi.fn(),
   },
@@ -42,6 +43,8 @@ function renderPage(page: React.ReactNode, route: string) {
 }
 
 describe('Phase 5 system pages', () => {
+  afterEach(() => cleanup())
+
   beforeEach(() => {
     vi.mocked(trainingApi.getHistory).mockResolvedValue({
       data: {
@@ -92,6 +95,9 @@ describe('Phase 5 system pages', () => {
     vi.mocked((trainingApi as any).deployModel).mockResolvedValue({ data: { message: '已上线' } } as any)
     vi.mocked((trainingApi as any).rollbackModel).mockResolvedValue({ data: { message: '已回滚' } } as any)
     vi.mocked((trainingApi as any).archiveModel).mockResolvedValue({ data: { message: '已归档' } } as any)
+    vi.mocked((trainingApi as any).runTraining).mockResolvedValue({
+      data: { job_id: 'TRN-live-002', status: 'pending', created_at: '2026-06-29T09:00:00Z' },
+    } as any)
     vi.mocked(trainingApi.getSchedule).mockResolvedValue({
       data: {
         enabled: true,
@@ -105,8 +111,8 @@ describe('Phase 5 system pages', () => {
     } as any)
     vi.mocked(healthApi.gateway).mockResolvedValue({ data: { status: 'healthy', service: 'gateway' } } as any)
     vi.mocked(healthApi.check).mockResolvedValue({ data: { status: 'healthy', service: 'service', version: '0.1.0' } } as any)
-    vi.mocked(liveTradeApi.getBrokerStatus).mockResolvedValue({ data: { mode: 'paper', broker_name: 'mock_qmt', connected: true } } as any)
-    vi.mocked(liveTradeApi.getRiskConfig).mockResolvedValue({ data: { max_position_pct: 0.2, max_single_amount: 100000 } } as any)
+    vi.mocked(tradeApi.getBrokerStatus).mockResolvedValue({ data: { mode: 'paper', broker_name: 'mock_qmt', connected: true } } as any)
+    vi.mocked(tradeApi.getRiskConfig).mockResolvedValue({ data: { max_position_pct: 0.2, max_single_amount: 100000 } } as any)
     vi.mocked(diagnosisApi.getHistory).mockResolvedValue({
       data: {
         items: [{
@@ -179,6 +185,30 @@ describe('Phase 5 system pages', () => {
 
     renderPage(<ModelRegistry />, '/model-registry')
     expect(await screen.findByText('alpha-ranker')).toBeInTheDocument()
+  })
+
+  it('submits a training run through the launch modal', async () => {
+    renderPage(<Training />, '/training/tasks')
+
+    fireEvent.click(await screen.findByRole('button', { name: /发起训练/ }))
+    fireEvent.click(await screen.findByRole('button', { name: '开始训练' }))
+
+    await waitFor(() => expect((trainingApi as any).runTraining).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auto_deploy: false,
+        params: expect.objectContaining({ model_type: 'lightgbm', horizon: 15, lookback: 180 }),
+      }),
+    ))
+    expect(await screen.findByText(/训练任务已发起：TRN-live-002/)).toBeInTheDocument()
+  })
+
+  it('labels the queue segments and duration column without misleading copy', async () => {
+    renderPage(<Training />, '/training/tasks')
+
+    expect(await screen.findByRole('tab', { name: /历史/ })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /已完成/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '时长' })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: '进度' })).not.toBeInTheDocument()
   })
 
   it('renders model registry empty state without fake model rows', async () => {
@@ -272,17 +302,17 @@ describe('Phase 5 system pages', () => {
     expect(healthApi.check).toHaveBeenCalledWith('trade')
     expect(healthApi.check).toHaveBeenCalledWith('training')
     expect(trainingApi.getModels).toHaveBeenCalledWith({ page: 1, page_size: 20 })
-    expect(liveTradeApi.getBrokerStatus).toHaveBeenCalled()
-    expect(liveTradeApi.getRiskConfig).toHaveBeenCalled()
+    expect(tradeApi.getBrokerStatus).toHaveBeenCalled()
+    expect(tradeApi.getRiskConfig).toHaveBeenCalled()
   })
 
   it('does not assume paper broker mode when broker status fails', async () => {
-    vi.mocked(liveTradeApi.getBrokerStatus).mockRejectedValueOnce(new Error('broker unavailable'))
+    vi.mocked(tradeApi.getBrokerStatus).mockRejectedValueOnce(new Error('broker unavailable'))
 
     renderPage(<PlatformUpgrade />, '/platform-upgrade')
 
     expect(await screen.findByText('券商模式')).toBeInTheDocument()
-    await waitFor(() => expect(liveTradeApi.getBrokerStatus).toHaveBeenCalled())
+    await waitFor(() => expect(tradeApi.getBrokerStatus).toHaveBeenCalled())
     expect(screen.queryByText('Paper')).not.toBeInTheDocument()
     expect(screen.getAllByText('未知').length).toBeGreaterThan(0)
   })

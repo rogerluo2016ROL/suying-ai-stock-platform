@@ -8,7 +8,7 @@ import {
   ReloadOutlined, AuditOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { liveTradeApi } from '../api/liveTrade'
+import { tradeApi } from '../api/domains/trade/api'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -115,7 +115,7 @@ export default function AuditLog() {
       if (fStockCode && fStockCode.trim()) params.stock_code = fStockCode.trim()
       if (fOperator && fOperator.trim()) params.operator = fOperator.trim()
 
-      const r = await liveTradeApi.getAuditLogs(params)
+      const r = await tradeApi.getAuditLogs(params)
       setData(r.data?.items || r.data?.logs || [])
       setTotal(r.data?.total || 0)
     } catch {
@@ -160,7 +160,7 @@ export default function AuditLog() {
       if (stockCode.trim()) params.stock_code = stockCode.trim()
       if (operator.trim()) params.operator = operator.trim()
 
-      const r = await liveTradeApi.exportAuditLogs(params)
+      const r = await tradeApi.exportAuditLogs(params)
       const blob = new Blob([r.data], { type: 'text/csv;charset=utf-8' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

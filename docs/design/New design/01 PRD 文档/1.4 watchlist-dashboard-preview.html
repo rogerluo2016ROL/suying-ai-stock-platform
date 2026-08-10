@@ -3,62 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 自选跟踪看板</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12); --up-dim:rgba(255,77,79,0.25);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12); --down-dim:rgba(46,194,126,0.25);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --neutral:#6b7a90;
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#b37feb);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
-.content{padding:18px 20px 32px}
-
-.grid{display:grid;gap:14px}
-.row{display:grid;gap:14px}
-.r-3{grid-template-columns:repeat(3,1fr)}
+.warn{color:var(--warn)}
 .r-5-7{grid-template-columns:5fr 7fr}
-.r-7-5{grid-template-columns:7fr 5fr}
-.mt14{margin-top:14px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.card-h h3{font-size:13.5px;font-weight:650}
-.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
-.card-b{padding:16px}
 .card-b.compact{padding:12px 16px}
-
-.page-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:16px;flex-wrap:wrap}
-.page-head h1{font-size:21px;font-weight:700}
-.page-head .sub{font-size:12.5px;color:var(--muted)}
-.head-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
 
 /* KPI Row */
 .kpis{display:grid;gap:12px;grid-template-columns:repeat(6,1fr)}
@@ -108,10 +59,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 /* Sticky header */
 .table-header{display:flex;align-items:center;gap:10px;padding:7px 16px;font-size:10px;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1}
 
-/* Scroll */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
 /* Add stock input */
 .add-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:8px 12px;background:var(--surface-2);border:1px dashed var(--border-2);border-radius:var(--radius)}
 .add-bar input{flex:1;background:transparent;border:none;outline:none;color:var(--fg);font-family:var(--font-mono);font-size:13px}
@@ -131,9 +78,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 /* Footer */
 .footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
 .footer-bar .sep{width:1px;height:12px;background:var(--border)}
-
-/* Pulse */
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -151,10 +95,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
             <div class="head-actions">
               <span style="font-size:11px;color:var(--muted)">排序:</span>
-              <span class="mono" style="cursor:pointer;color:var(--accent);font-weight:600;font-size:11px">涨跌幅</span>
-              <span class="mono" style="cursor:pointer;color:var(--muted);font-size:11px">· 信号</span>
-              <span class="mono" style="cursor:pointer;color:var(--muted);font-size:11px">· 市值</span>
-              <span class="mono" style="cursor:pointer;color:var(--muted);font-size:11px">· 行业</span>
+              <span class="mono" data-sort="chg" style="cursor:pointer;color:var(--accent);font-weight:600;font-size:11px">涨跌幅</span>
+              <span class="mono" data-sort="signal" style="cursor:pointer;color:var(--muted);font-size:11px">· 信号</span>
+              <span class="mono" data-sort="mcap" style="cursor:pointer;color:var(--muted);font-size:11px">· 市值</span>
+              <span class="mono" data-sort="industry" style="cursor:pointer;color:var(--muted);font-size:11px">· 行业</span>
             </div>
           </div>
       
@@ -162,7 +106,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
           <div class="kpis">
             <div class="kpi">
               <div class="kl">自选等权盈亏</div>
-              <div class="kv" style="color:var(--down)">+2.35<span style="font-size:13px">%</span></div>
+              <div class="kv" style="color:var(--up)">+2.35<span style="font-size:13px">%</span></div>
               <div class="ks">9涨 · 3跌</div>
             </div>
             <div class="kpi">
@@ -203,9 +147,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
               </div>
               <div class="add-bar">
                 <span style="font-size:12px;color:var(--muted);flex-shrink:0">+ 添加</span>
-                <input placeholder="输入代码 如 000001" value="" />
-                <span class="tag tag-blue" style="cursor:pointer;font-size:11px">添加</span>
-                <span style="font-size:10px;color:var(--muted);flex-shrink:0">从选股导入</span>
+                <input id="watchAddInput" placeholder="输入代码 如 000001" value="" />
+                <span class="tag tag-blue" id="watchAddBtn" role="button" tabindex="0" style="cursor:pointer;font-size:11px">添加</span>
+                <a href="3.1 screener-workbench-preview.html" style="font-size:10px;color:var(--accent);flex-shrink:0;text-decoration:none">从选股导入</a>
               </div>
               <!-- 表头 -->
               <div class="table-header" style="padding:7px 16px">
@@ -219,7 +163,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <span class="stock-mcap">市值</span>
                 <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px">操作</span>
               </div>
-              <div class="card-b" style="padding:0 16px">
+              <div class="card-b" style="padding:0 16px" id="watchlistBody">
       
                 <!-- 宁德时代: 强买 + 大涨 -->
                 <div class="stock-row signal-buy sb-strong">
@@ -233,7 +177,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-signal"><span class="tag tag-red">🟢强买 82</span></span>
                   <span class="stock-industry">新能源</span>
                   <span class="stock-mcap">9,850亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <!-- 中芯国际: 强买 -->
@@ -248,7 +192,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-signal"><span class="tag tag-red">🟢强买 78</span></span>
                   <span class="stock-industry">半导体</span>
                   <span class="stock-mcap">5,420亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <!-- 贵州茅台: 买入 -->
@@ -263,7 +207,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-signal"><span class="tag tag-orange">🟡买入 68</span></span>
                   <span class="stock-industry">白酒</span>
                   <span class="stock-mcap">22,400亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <!-- 隆基绿能: 买入 -->
@@ -278,7 +222,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-signal"><span class="tag tag-orange">🟡买入 65</span></span>
                   <span class="stock-industry">光伏</span>
                   <span class="stock-mcap">2,180亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <!-- 比亚迪: 持有 -->
@@ -293,7 +237,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-signal"><span class="tag tag-blue">🔵持有 52</span></span>
                   <span class="stock-industry">汽车</span>
                   <span class="stock-mcap">8,320亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <!-- 药明康德: 持有 -->
@@ -301,14 +245,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-code">603259</span>
                   <span class="stock-name">药明康德</span>
                   <span class="stock-price">68.50</span>
-                  <span class="stock-chg down">+0.85%</span>
+                  <span class="stock-chg up">+0.85%</span>
                   <span class="spark-bar">
                     <svg viewBox="0 0 70 22"><polyline points="2,14 14,11 26,12 38,10 48,12 58,9 68,11" fill="none" stroke="#3d8bff" stroke-width="1.8"/></svg>
                   </span>
                   <span class="stock-signal"><span class="tag tag-blue">🔵持有 48</span></span>
                   <span class="stock-industry">医药</span>
                   <span class="stock-mcap">2,680亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <!-- 中科曙光: 持有 -->
@@ -316,14 +260,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-code">603019</span>
                   <span class="stock-name">中科曙光</span>
                   <span class="stock-price">52.40</span>
-                  <span class="stock-chg down">+0.38%</span>
+                  <span class="stock-chg up">+0.38%</span>
                   <span class="spark-bar">
                     <svg viewBox="0 0 70 22"><polyline points="2,12 14,13 26,11 38,12 48,10 58,11 68,12" fill="none" stroke="#6b7a90" stroke-width="1.8"/></svg>
                   </span>
                   <span class="stock-signal"><span class="tag tag-blue">🔵持有 45</span></span>
                   <span class="stock-industry">AI算力</span>
                   <span class="stock-mcap">1,150亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <!-- 五粮液: 减仓 + 止损逼近 -->
@@ -331,11 +275,11 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-code" style="color:var(--up)">000858</span>
                   <span class="stock-name">五粮液</span>
                   <span class="stock-price">148.30</span>
-                  <span class="stock-chg" style="color:var(--up)">-2.81%</span>
+                  <span class="stock-chg" style="color:var(--down)">-2.81%</span>
                   <span class="spark-bar">
                     <svg viewBox="0 0 70 22"><polyline points="2,8 14,10 26,12 38,14 50,16 60,18 68,20" fill="none" stroke="#2ec27e" stroke-width="1.8"/></svg>
                   </span>
-                  <span class="stock-signal"><span class="tag" style="background:rgba(250,173,20,.12);color:#faad14">🟠减仓 32</span></span>
+                  <span class="stock-signal"><span class="tag tag-orange">🟠减仓 32</span></span>
                   <span class="stock-industry">白酒</span>
                   <span class="stock-mcap">5,760亿</span>
                   <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px">
@@ -348,11 +292,11 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-code warn">600000</span>
                   <span class="stock-name">浦发银行</span>
                   <span class="stock-price">8.92</span>
-                  <span class="stock-chg down">+1.13%</span>
+                  <span class="stock-chg up">+1.13%</span>
                   <span class="spark-bar">
                     <svg viewBox="0 0 70 22"><polyline points="2,16 14,13 26,14 38,11 48,13 58,10 68,12" fill="none" stroke="#6b7a90" stroke-width="1.8"/></svg>
                   </span>
-                  <span class="stock-signal"><span class="tag" style="background:rgba(250,173,20,.12);color:#faad14">⚠️审计风险</span></span>
+                  <span class="stock-signal"><span class="tag tag-orange">⚠️审计风险</span></span>
                   <span class="stock-industry">金融</span>
                   <span class="stock-mcap">2,180亿</span>
                   <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px">
@@ -372,21 +316,21 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-signal"><span class="tag tag-blue">🔵持有 55</span></span>
                   <span class="stock-industry">有色</span>
                   <span class="stock-mcap">4,120亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <div class="stock-row">
                   <span class="stock-code">601318</span>
                   <span class="stock-name">中国平安</span>
                   <span class="stock-price">52.40</span>
-                  <span class="stock-chg down">+0.58%</span>
+                  <span class="stock-chg up">+0.58%</span>
                   <span class="spark-bar">
                     <svg viewBox="0 0 70 22"><polyline points="2,11 14,10 26,12 38,10 48,11 58,9 68,10" fill="none" stroke="#6b7a90" stroke-width="1.8"/></svg>
                   </span>
                   <span class="stock-signal"><span class="tag tag-blue">🔵持有 50</span></span>
                   <span class="stock-industry">金融</span>
                   <span class="stock-mcap">9,520亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
       
                 <div class="stock-row">
@@ -400,9 +344,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="stock-signal"><span class="tag tag-blue">🔵持有 58</span></span>
                   <span class="stock-industry">光伏</span>
                   <span class="stock-mcap">1,850亿</span>
-                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · ✕</span>
+                  <span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>
                 </div>
               </div>
+              <div class="empty" id="watchlistEmpty" hidden>暂无自选股，使用上方「+ 添加」或从选股导入</div>
             </div>
       
             <!-- 右: 板块分布 + 盈亏分析 + 联动 -->
@@ -414,42 +359,42 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <div class="sector-bar">
                     <span class="sn">半导体</span>
                     <div class="sb">
-                      <div class="sf" style="width:75%;background:linear-gradient(90deg,#3d8bff,#1677ff)"></div>
+                      <div class="sf" style="width:75%;background:linear-gradient(90deg,#3d8bff,#7db2ff)"></div>
                     </div>
                     <span class="sc">3只</span>
                   </div>
                   <div class="sector-bar">
                     <span class="sn">新能源</span>
                     <div class="sb">
-                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#fa8c16,#ff7a45)"></div>
+                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#ff4d4f,rgba(255,77,79,.55))"></div>
                     </div>
                     <span class="sc">2只</span>
                   </div>
                   <div class="sector-bar">
                     <span class="sn">白酒</span>
                     <div class="sb">
-                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#722ed1,#b37feb)"></div>
+                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#f5a623,rgba(245,166,35,.55))"></div>
                     </div>
                     <span class="sc">2只</span>
                   </div>
                   <div class="sector-bar">
                     <span class="sn">光伏</span>
                     <div class="sb">
-                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#f5a623,#ffc53d)"></div>
+                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#2ec27e,rgba(46,194,126,.55))"></div>
                     </div>
                     <span class="sc">2只</span>
                   </div>
                   <div class="sector-bar">
                     <span class="sn">金融</span>
                     <div class="sb">
-                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#2ec27e,#73d13d)"></div>
+                      <div class="sf" style="width:50%;background:linear-gradient(90deg,#9aa7b8,rgba(154,167,184,.5))"></div>
                     </div>
                     <span class="sc">2只</span>
                   </div>
                   <div class="sector-bar">
                     <span class="sn">其他</span>
                     <div class="sb">
-                      <div class="sf" style="width:25%;background:linear-gradient(90deg,#6b7a90,#8c8c8c)"></div>
+                      <div class="sf" style="width:25%;background:linear-gradient(90deg,#5e6a7d,#9aa7b8)"></div>
                     </div>
                     <span class="sc">1只</span>
                   </div>
@@ -495,7 +440,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   </div>
                   <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between">
                     <span style="font-size:10.5px;color:var(--muted)">等权平均</span>
-                    <span class="mono" style="font-size:13px;font-weight:700;color:var(--down)">+2.35%</span>
+                    <span class="mono" style="font-size:13px;font-weight:700;color:var(--up)">+2.35%</span>
                   </div>
                 </div>
               </div>
@@ -538,7 +483,167 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
+<script>
+// ===== 自选清单排序 =====
+(function(){
+  var body = document.getElementById('watchlistBody');
+  if(!body) return;
+  var dirs = {};
+  function rowVal(row, key){
+    if(key === 'chg') return parseFloat(row.querySelector('.stock-chg').textContent) || 0;
+    if(key === 'signal'){
+      var m = row.querySelector('.stock-signal').textContent.match(/(\d+)\s*$/);
+      return m ? +m[1] : 0;
+    }
+    if(key === 'mcap') return parseFloat(row.querySelector('.stock-mcap').textContent.replace(/,/g,'')) || 0;
+    if(key === 'industry') return row.querySelector('.stock-industry').textContent.trim();
+    return 0;
+  }
+  document.querySelectorAll('[data-sort]').forEach(function(el){
+    el.addEventListener('click', function(){
+      var key = el.getAttribute('data-sort');
+      dirs[key] = dirs[key] === 'desc' ? 'asc' : 'desc';
+      var rows = Array.prototype.slice.call(body.querySelectorAll('.stock-row'));
+      rows.sort(function(a, b){
+        var va = rowVal(a, key), vb = rowVal(b, key);
+        var c = (typeof va === 'string') ? va.localeCompare(vb, 'zh') : va - vb;
+        return dirs[key] === 'desc' ? -c : c;
+      });
+      rows.forEach(function(r){ body.appendChild(r); });
+      document.querySelectorAll('[data-sort]').forEach(function(x){
+        x.style.color = 'var(--muted)'; x.style.fontWeight = '400';
+      });
+      el.style.color = 'var(--accent)'; el.style.fontWeight = '600';
+      if(window.suyingToast){
+        window.suyingToast('已按 ' + el.textContent.replace(/^[·\s]+/, '') + (dirs[key] === 'desc' ? '降序' : '升序') + ' 排序', 'info');
+      }
+    });
+  });
+})();
+</script>
+<script>
+// ===== 自选添加 / 移出 / 点击跳转诊断 =====
+(function(){
+  var body = document.getElementById('watchlistBody');
+  if(!body) return;
+  var input = document.getElementById('watchAddInput');
+  var addBtn = document.getElementById('watchAddBtn');
+  var sub = document.querySelector('.page-head .sub');
 
+  var NAME_MAP = {
+    '000001':'平安银行','600030':'中信证券','002415':'海康威视','300502':'新易盛',
+    '688041':'海光信息','000977':'浪潮信息','600036':'招商银行','002230':'科大讯飞'
+  };
+
+  function refreshCount(){
+    var n = body.querySelectorAll('.stock-row').length;
+    if(sub) sub.textContent = sub.textContent.replace(/^\d+ 只自选/, n + ' 只自选');
+    var empty = document.getElementById('watchlistEmpty');
+    if(empty) empty.hidden = n > 0;
+  }
+
+  function sparkSvg(){
+    var pts = [];
+    for(var i = 0; i < 7; i++){ pts.push((2 + i * 11) + ',' + (5 + Math.round(Math.random() * 11))); }
+    return '<svg viewBox="0 0 70 22"><polyline points="' + pts.join(' ') + '" fill="none" stroke="#3d8bff" stroke-width="1.8"/></svg>';
+  }
+
+  // ===== 跨页自选合并：localStorage suying_mock_watchlist 读写 =====
+  // 统一 schema: [{code, name, src, date}]，兼容历史字符串元素
+  function readStoredWatchlist(){
+    var list = [];
+    try{ list = JSON.parse(localStorage.getItem('suying_mock_watchlist') || '[]'); }catch(e){ list = []; }
+    return list.map(function(e){ return typeof e === 'string' ? {code:e, name:'', src:'', date:''} : e; }).filter(function(e){ return e && e.code; });
+  }
+  function writeStoredWatchlist(list){
+    try{ localStorage.setItem('suying_mock_watchlist', JSON.stringify(list)); }catch(e){}
+  }
+  function codeInDom(code){
+    return Array.prototype.some.call(body.querySelectorAll('.stock-code'), function(el){
+      return el.textContent.trim() === code;
+    });
+  }
+  function buildRow(code, name){
+    var chg = (Math.random() * 6 - 1.5);
+    var up = chg >= 0;
+    var score = 40 + Math.round(Math.random() * 30);
+    var row = document.createElement('div');
+    row.className = 'stock-row';
+    row.setAttribute('data-dyn', '1');
+    row.innerHTML = [
+      '<span class="stock-code' + (up ? ' up' : '') + '">' + code + '</span>',
+      '<span class="stock-name">' + name + '</span>',
+      '<span class="stock-price">' + (8 + Math.random() * 180).toFixed(2) + '</span>',
+      '<span class="stock-chg ' + (up ? 'up' : 'down') + '">' + (up ? '+' : '') + chg.toFixed(2) + '%</span>',
+      '<span class="spark-bar">' + sparkSvg() + '</span>',
+      '<span class="stock-signal"><span class="tag tag-blue">🔵持有 ' + score + '</span></span>',
+      '<span class="stock-industry">新加入</span>',
+      '<span class="stock-mcap">--</span>',
+      '<span style="width:70px;text-align:center;flex-shrink:0;font-size:10px;color:var(--accent)">诊断 · <span class="wl-del" role="button" tabindex="0" title="移出自选" style="cursor:pointer;padding:1px 3px">✕</span></span>'
+    ].join('');
+    return row;
+  }
+
+  // 加载时合并 localStorage 中其他页面加入的自选标的
+  (function mergeStoredWatchlist(){
+    var added = 0;
+    readStoredWatchlist().forEach(function(it){
+      if(codeInDom(it.code)) return;
+      var name = it.name || NAME_MAP[it.code] || ('自选股' + it.code.slice(-3));
+      body.appendChild(buildRow(it.code, name));
+      added++;
+    });
+    if(added) refreshCount();
+  })();
+
+  function addWatchStock(){
+    var code = (input.value || '').trim();
+    if(!/^\d{6}$/.test(code)){
+      window.suyingToast('请输入 6 位股票代码（如 000001）', 'warn');
+      input.focus();
+      return;
+    }
+    if(codeInDom(code)){
+      window.suyingToast(code + ' 已在自选清单中', 'warn');
+      return;
+    }
+    var name = NAME_MAP[code] || '自选股' + code.slice(-3);
+    body.insertBefore(buildRow(code, name), body.firstChild);
+    // 同步写入 localStorage，供其他页面读取
+    var list = readStoredWatchlist();
+    if(!list.some(function(e){ return e.code === code; })){
+      list.push({code: code, name: name, src: 'manual', date: new Date().toISOString().slice(0,10)});
+      writeStoredWatchlist(list);
+    }
+    input.value = '';
+    refreshCount();
+    window.suyingToast('已添加 ' + code + ' ' + name + ' 到自选', 'ok');
+  }
+
+  if(addBtn) addBtn.addEventListener('click', addWatchStock);
+  if(input) input.addEventListener('keydown', function(e){ if(e.key === 'Enter') addWatchStock(); });
+
+  body.addEventListener('click', function(e){
+    var row = e.target.closest('.stock-row');
+    if(!row) return;
+    var codeEl = row.querySelector('.stock-code');
+    var nameEl = row.querySelector('.stock-name');
+    var code = codeEl ? codeEl.textContent.trim() : '';
+    var name = nameEl ? nameEl.textContent.trim() : '';
+    if(e.target.closest('.wl-del')){
+      window.suyingConfirm('确认将 ' + code + ' ' + name + ' 移出自选？', function(){
+        row.remove();
+        // 同步从 localStorage 删除
+        writeStoredWatchlist(readStoredWatchlist().filter(function(it){ return it.code !== code; }));
+        refreshCount();
+        window.suyingToast('已将 ' + code + ' ' + name + ' 移出自选', 'ok');
+      }, {title:'移出自选', okText:'移出', danger:true});
+      return;
+    }
+    window.location.href = '12.0 diagnosis-preview.html?code=' + encodeURIComponent(code);
+  });
+})();
+</script>
 <script src="assets/preview-interactions.js"></script>
 </body>
 </html>

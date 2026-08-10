@@ -1,5 +1,11 @@
 /* 速赢AI PRD preview shell: shared sidebar, market header, module tabs, context strip. */
 (function(){
+  // 统一注入空 favicon，消除全站 /favicon.ico 404 console error
+  if(!document.querySelector('link[rel="icon"]')){
+    const fav = document.createElement('link');
+    fav.rel = 'icon'; fav.href = 'data:,';
+    document.head.appendChild(fav);
+  }
   const I = {
     dash:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
     line:'<path d="M3 17l5-6 4 4 5-8 4 5"/>',
@@ -30,7 +36,7 @@
     {k:'auto-trade', f:'8.1 strategy-market-preview.html', i:'robot', t:'量化交易'},
     {k:'plans', f:'9.1 plan-list-preview.html', i:'doc', t:'方案管理'},
     {k:'risk-control', f:'10.0 risk-control-dashboard-preview.html', i:'shield', t:'风控中心'},
-    {k:'backtest', f:'11.0 backtest-preview.html', i:'flask', t:'回测分析'},
+    {k:'backtest', f:'11.1 backtest-run-preview.html', i:'flask', t:'回测分析'},
     {k:'diagnosis', f:'12.0 diagnosis-preview.html', i:'pulse', t:'个股诊断'},
     {g:'模型 / 系统', admin:true},
     {k:'training', f:'13.0 model-training-preview.html', i:'train', t:'模型训练'},
@@ -72,8 +78,7 @@
     signals: [
       {n:'信号详情', s:'单股深读', f:'6.0 signal-detail-preview.html'},
       {n:'信号总览', s:'未读 / 已读', f:'6.1 signal-overview-preview.html'},
-      {n:'信号历史', s:'触发记录', f:'6.2 signal-history-preview.html'},
-      {n:'风险扫描', s:'止盈止损', f:'6.3 risk-scan-preview.html'}
+      {n:'信号历史', s:'触发记录', f:'6.2 signal-history-preview.html'}
     ],
     trade: [
       {n:'交易中心', s:'总览', f:'7.0 trade-center-preview.html'},
@@ -103,7 +108,6 @@
       {n:'事件审计', s:'规则命中', f:'10.5 event-audit-preview.html'}
     ],
     backtest: [
-      {n:'回测总览', s:'收益概览', f:'11.0 backtest-preview.html'},
       {n:'回测运行', s:'参数执行', f:'11.1 backtest-run-preview.html'},
       {n:'策略对比', s:'组合比较', f:'11.2 backtest-compare-preview.html'},
       {n:'交易明细', s:'成交拆解', f:'11.3 backtest-trades-preview.html'}
@@ -123,7 +127,6 @@
     'model-registry': [{n:'模型注册', s:'版本 / 灰度', f:'14.0 model-registry-preview.html'}],
     'data-update': [
       {n:'数据更新', s:'同步总览', f:'15.0 data-update-preview.html'},
-      {n:'数据总览', s:'源状态', f:'15.1 data-overview-preview.html'},
       {n:'全部数据表', s:'表级质量', f:'15.2 all-tables-preview.html'},
       {n:'同步调度', s:'任务编排', f:'15.3 sync-schedule-preview.html'}
     ],
@@ -161,8 +164,9 @@
   }
 
   const root = document.documentElement;
-  let theme = 'light';
-  try{ theme = localStorage.getItem('suying_preview_theme') || 'light'; }catch(e){}
+  // 全站默认暗色（交易终端主主题），用户可通过顶栏按钮切浅色，选择持久化。
+  let theme = 'dark';
+  try{ theme = localStorage.getItem('suying_preview_theme') || 'dark'; }catch(e){}
   root.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
   const themeBtn = document.getElementById('themeBtn');
   if(themeBtn) themeBtn.addEventListener('click', ()=>{

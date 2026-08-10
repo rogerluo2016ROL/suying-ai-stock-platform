@@ -6,47 +6,8 @@
 <title>速赢AI · 风控中心 — 持仓风险</title>
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--up),#ff7875);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--up)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
-.content{padding:18px 20px 32px}
-
-.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
-.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
-.stb a:hover{color:var(--fg)}
-.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
+/* ===== 页面私有样式（token / reset / 壳样式见 assets/app.css） ===== */
+.warn{color:var(--warn)}
 
 .page-head h1{font-size:21px;font-weight:700;margin-bottom:4px}
 .page-head .sub{font-size:12.5px;color:var(--muted);margin-bottom:8px}
@@ -77,7 +38,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .pos-sl-fill{position:absolute;left:0;top:0;height:100%;border-radius:3px;transition:width .4s}
 .pos-sl-marker{position:absolute;top:-3px;width:2px;height:12px;background:var(--fg);border-radius:1px}
 .pos-tags{display:flex;gap:4px;flex-shrink:0;min-width:110px}
-.tag{padding:1px 7px;border-radius:4px;font-size:9.5px;font-weight:600;white-space:nowrap}
 .tag-danger{background:var(--up-bg);color:var(--up)}
 .tag-warn{background:var(--warn-bg);color:var(--warn)}
 .tag-info{background:var(--accent-dim);color:var(--accent)}
@@ -114,16 +74,16 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
           <!-- 排序 -->
           <div class="sort-bar">
-            <span class="sort-btn active">风险分 ▼</span>
-            <span class="sort-btn">距止损</span>
-            <span class="sort-btn">亏损%</span>
+            <span class="sort-btn active" data-sort="risk">风险分 ▼</span>
+            <span class="sort-btn" data-sort="sl">距止损</span>
+            <span class="sort-btn" data-sort="loss">亏损%</span>
           </div>
       
           <!-- 持仓风险表 -->
           <div class="pos-card">
             <div class="pc-h">
               <h3>📋 持仓风险清单</h3>
-              <span class="meta">持仓 6 只 · 风险 3 只</span>
+              <span class="meta" id="posMeta">持仓 6 只 · 风险 3 只</span>
             </div>
       
             <div class="pos-th">
@@ -137,10 +97,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
       
             <!-- 持仓 1: 高风险 -->
-            <div class="pos-row danger">
+            <div class="pos-row danger" data-code="000858" data-name="五粮液" data-risk="95" data-sl="0.7" data-loss="-2.8" data-risked="1">
               <span class="pos-code up">000858</span>
               <span class="pos-name">五粮液</span>
-              <span class="pos-pnl" style="color:var(--up)">-2.8%</span>
+              <span class="pos-pnl" style="color:var(--down)">-2.8%</span>
               <span class="pos-exposure">12.4%</span>
               <div class="pos-sl">
                 <div class="sl-label">距止损 <b style="color:var(--up)">0.7%</b></div>
@@ -159,10 +119,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
       
             <!-- 持仓 2: 高风险 -->
-            <div class="pos-row danger">
+            <div class="pos-row danger" data-code="688981" data-name="中芯国际" data-risk="90" data-sl="6.5" data-loss="-1.5" data-risked="1">
               <span class="pos-code up">688981</span>
               <span class="pos-name">中芯国际</span>
-              <span class="pos-pnl" style="color:var(--up)">-1.5%</span>
+              <span class="pos-pnl" style="color:var(--down)">-1.5%</span>
               <span class="pos-exposure">9.1%</span>
               <div class="pos-sl">
                 <div class="sl-label">距止损 <b style="color:var(--warn)">6.5%</b></div>
@@ -182,10 +142,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
       
             <!-- 持仓 3: 警告风险 -->
-            <div class="pos-row warning">
+            <div class="pos-row warning" data-code="600000" data-name="浦发银行" data-risk="60" data-sl="8.2" data-loss="1.1" data-risked="1">
               <span class="pos-code warn">600000</span>
               <span class="pos-name">浦发银行</span>
-              <span class="pos-pnl" style="color:var(--down)">+1.1%</span>
+              <span class="pos-pnl" style="color:var(--up)">+1.1%</span>
               <span class="pos-exposure">8.7%</span>
               <div class="pos-sl">
                 <div class="sl-label">距止损 <b style="color:var(--down)">8.2%</b></div>
@@ -203,10 +163,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
       
             <!-- 持仓 4: 正常 -->
-            <div class="pos-row">
+            <div class="pos-row" data-code="600519" data-name="贵州茅台" data-risk="10" data-sl="99" data-loss="5.3">
               <span class="pos-code">600519</span>
               <span class="pos-name">贵州茅台</span>
-              <span class="pos-pnl" style="color:var(--down)">+5.3%</span>
+              <span class="pos-pnl" style="color:var(--up)">+5.3%</span>
               <span class="pos-exposure">18.2%</span>
               <div class="pos-sl">
                 <div class="sl-label">距止损 <b style="color:var(--down)">&gt;10%</b></div>
@@ -222,10 +182,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
       
             <!-- 持仓 5: 正常 -->
-            <div class="pos-row">
+            <div class="pos-row" data-code="300750" data-name="宁德时代" data-risk="5" data-sl="99" data-loss="8.2">
               <span class="pos-code">300750</span>
               <span class="pos-name">宁德时代</span>
-              <span class="pos-pnl" style="color:var(--down)">+8.2%</span>
+              <span class="pos-pnl" style="color:var(--up)">+8.2%</span>
               <span class="pos-exposure">15.6%</span>
               <div class="pos-sl">
                 <div class="sl-label">距止损 <b style="color:var(--down)">&gt;10%</b></div>
@@ -241,10 +201,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
       
             <!-- 持仓 6: 正常 -->
-            <div class="pos-row">
+            <div class="pos-row" data-code="002594" data-name="比亚迪" data-risk="8" data-sl="99" data-loss="3.5">
               <span class="pos-code">002594</span>
               <span class="pos-name">比亚迪</span>
-              <span class="pos-pnl" style="color:var(--down)">+3.5%</span>
+              <span class="pos-pnl" style="color:var(--up)">+3.5%</span>
               <span class="pos-exposure">9.4%</span>
               <div class="pos-sl">
                 <div class="sl-label">距止损 <b style="color:var(--down)">&gt;10%</b></div>
@@ -261,7 +221,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
             <!-- 一键平仓 -->
             <div class="batch-bar">
-              <span class="btn-danger">⚠️ 一键平仓风险标的 (3只)</span>
+              <span class="btn-danger" id="btnLiquidate">⚠️ 一键平仓风险标的 (3只)</span>
             </div>
           </div>
       
@@ -277,7 +237,80 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
+<script>
+// ===== 排序：对持仓行真实重排（风险分降序 / 距止损升序 / 亏损升序） =====
+document.querySelectorAll('.sort-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.sort-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    var key=btn.getAttribute('data-sort');
+    var card=document.querySelector('.pos-card');
+    var anchor=document.querySelector('.batch-bar');
+    var rows=Array.prototype.slice.call(card.querySelectorAll('.pos-row'));
+    rows.sort(function(a,b){
+      var av=parseFloat(a.getAttribute('data-'+key));
+      var bv=parseFloat(b.getAttribute('data-'+key));
+      return key==='risk' ? bv-av : av-bv;
+    });
+    rows.forEach(function(r){card.insertBefore(r,anchor);});
+    suyingToast('已按「'+btn.textContent.replace(/\s|▼/g,'')+'」重新排序','info');
+  });
+});
 
+// ===== 风险行状态：止损/减仓/平仓后的真实 DOM 变更 =====
+function markRowClosed(row,label){
+  row.classList.remove('danger','warning');
+  row.setAttribute('data-risked','0');
+  row.querySelector('.pos-tags').innerHTML='<span class="tag tag-info">'+label+'</span>';
+  row.querySelector('.pos-actions').textContent='—';
+  updateRiskCount();
+}
+function updateRiskCount(){
+  var n=document.querySelectorAll('.pos-row[data-risked="1"]').length;
+  document.getElementById('posMeta').textContent='持仓 6 只 · 风险 '+n+' 只';
+  var lb=document.getElementById('btnLiquidate');
+  if(n===0){
+    lb.textContent='✅ 风险标的已全部处理';
+    lb.style.opacity='.5';
+    lb.style.pointerEvents='none';
+  }else{
+    lb.textContent='⚠️ 一键平仓风险标的 ('+n+'只)';
+  }
+}
+
+// ===== 行内操作：止损（danger 二次确认）/ 减仓（确认后仓位减半） =====
+document.querySelector('.pos-card').addEventListener('click',function(e){
+  var btn=e.target.closest('.btn-sm');
+  if(!btn)return;
+  var row=btn.closest('.pos-row');
+  var code=row.getAttribute('data-code');
+  var name=row.getAttribute('data-name');
+  if(btn.classList.contains('danger')){
+    suyingConfirm('确认对 '+code+' '+name+' 执行止损？将以市价卖出全部持仓，不可撤销。',function(){
+      markRowClosed(row,'已提交止损');
+      suyingToast('已提交 '+name+' 止损卖出委托（预览模拟）','ok');
+    },{title:'止损确认 · '+code,okText:'确认止损',danger:true});
+  }else{
+    suyingConfirm('确认对 '+code+' '+name+' 减仓 50%？将以市价卖出半仓。',function(){
+      var exp=row.querySelector('.pos-exposure');
+      var v=parseFloat(exp.textContent);
+      if(!isNaN(v))exp.textContent=(v/2).toFixed(1)+'%';
+      suyingToast('已提交 '+name+' 减仓 50% 委托（预览模拟）','ok');
+    },{title:'减仓确认 · '+code,okText:'确认减仓'});
+  }
+});
+
+// ===== 一键平仓：高危操作，二次确认后批量更新行状态 =====
+document.getElementById('btnLiquidate').addEventListener('click',function(){
+  var rows=document.querySelectorAll('.pos-row[data-risked="1"]');
+  if(!rows.length)return;
+  var names=Array.prototype.map.call(rows,function(r){return r.getAttribute('data-name');}).join(' / ');
+  suyingConfirm('确认一键平仓 '+rows.length+' 只风险标的（'+names+'）？将立即以市价卖出，不可撤销。',function(){
+    rows.forEach(function(r){markRowClosed(r,'已平仓');});
+    suyingToast('已提交一键平仓指令（预览模拟）','warn');
+  },{title:'高危操作 · 一键平仓',okText:'确认平仓',danger:true});
+});
+</script>
 <script src="assets/preview-interactions.js"></script>
 </body>
 </html>

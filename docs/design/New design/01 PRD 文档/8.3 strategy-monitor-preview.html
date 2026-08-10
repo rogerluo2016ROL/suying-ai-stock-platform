@@ -4,54 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 量化交易 — 策略监控</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="icon" href="data:," />
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
-.top-bar .page-title{font-size:21px;font-weight:700}
-.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
-.top-bar .stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
-
-.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
-.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
-.stb a:hover{color:var(--fg)}
-.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
-
 .monitor-wrap{max-width:960px;margin:0 auto}
 
 .selector-row{display:flex;align-items:center;gap:12px;margin-bottom:16px}
@@ -60,6 +15,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .selector-row select:focus{border-color:var(--accent)}
 .status-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
 .status-badge.active{background:var(--down-bg);color:var(--down);border:1px solid rgba(46,194,126,.25)}
+.status-badge.paused{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(245,166,35,.25)}
+.status-badge.closed{background:rgba(94,106,125,.10);color:var(--muted);border:1px solid rgba(94,106,125,.20)}
 .status-dot{width:7px;height:7px;border-radius:50%}
 .status-dot.active{background:var(--down);animation:dotPulse 1.8s infinite}
 @keyframes dotPulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 5px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
@@ -115,12 +72,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .action-bar button.warn:hover{background:rgba(245,166,35,0.18)}
 .action-bar button.danger{color:var(--up);border-color:var(--up);background:var(--up-bg)}
 .action-bar button.danger:hover{background:rgba(255,77,79,0.18)}
-
-.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
-.toast.show{opacity:1;transform:translateY(0)}
-
-.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
-.footer-bar .sep{width:1px;height:12px;background:var(--border)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -175,7 +126,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
             <!-- NAV Chart -->
             <div class="chart-card">
-              <div class="cc-header">📈 净值曲线 — 龙头战法-强势突破</div>
+              <div class="cc-header" id="ccHeader">📈 净值曲线 — 我的自定义</div>
               <div class="cc-body"><div id="navChart" style="width:100%;height:100%"></div></div>
               <div class="cc-footer">
                 <span>累计 <b style="color:var(--up)">+13.6%</b></span><span class="sep"></span>
@@ -188,9 +139,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             <!-- Positions + Trades -->
             <div class="two-col">
               <div class="info-card">
-                <div class="ic-title">📊 当前持仓 <span class="cnt">5 只</span></div>
+                <div class="ic-title">📊 当前持仓 <span class="cnt" id="posCount">5 只</span></div>
                 <div class="pos-th"><span class="pr-code">代码</span><span class="pr-name">名称</span><span class="pr-qty">持仓</span><span class="pr-now">现价</span><span class="pr-pnl">浮盈</span><span class="pr-alloc">仓位</span><span class="pr-stop">止损</span></div>
-                <div>
+                <div id="posBody">
                   <div class="pos-row"><span class="pr-code">300750</span><span class="pr-name">宁德</span><span class="pr-qty">500</span><span class="pr-now">218.50</span><span class="pr-pnl" style="color:var(--up)">+¥4,250</span><span class="pr-alloc">15%</span><span class="pr-stop">210.00</span></div>
                   <div class="pos-row"><span class="pr-code">600519</span><span class="pr-name">茅台</span><span class="pr-qty">100</span><span class="pr-now">1,785</span><span class="pr-pnl" style="color:var(--up)">+¥3,200</span><span class="pr-alloc">12%</span><span class="pr-stop">1,730</span></div>
                   <div class="pos-row"><span class="pr-code">688981</span><span class="pr-name">中芯</span><span class="pr-qty">800</span><span class="pr-now">68.20</span><span class="pr-pnl" style="color:var(--down)">-¥1,120</span><span class="pr-alloc">10%</span><span class="pr-stop">64.80</span></div>
@@ -200,8 +151,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
               </div>
       
               <div class="info-card">
-                <div class="ic-title">📋 今日交易 <span class="cnt">7 笔</span></div>
-                <div>
+                <div class="ic-title">📋 今日交易 <span class="cnt" id="tradeCount">6 笔</span></div>
+                <div id="tradeBody">
                   <div class="trade-item"><span class="ti-dot filled"></span><span class="ti-time">10:15</span><span class="ti-dir" style="color:var(--up)">买入</span><span class="ti-code">300750</span><span class="ti-qty">500股</span><span class="ti-price">@218.50</span></div>
                   <div class="trade-item"><span class="ti-dot filled"></span><span class="ti-time">09:50</span><span class="ti-dir" style="color:var(--down)">卖出</span><span class="ti-code">600036</span><span class="ti-qty">1,000股</span><span class="ti-price">@42.30</span></div>
                   <div class="trade-item"><span class="ti-dot filled"></span><span class="ti-time">09:45</span><span class="ti-dir" style="color:var(--up)">买入</span><span class="ti-code">600519</span><span class="ti-qty">100股</span><span class="ti-price">@1,785</span></div>
@@ -213,10 +164,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             </div>
       
             <!-- Actions -->
-            <div class="action-bar">
-              <button class="warn" onclick="showToast('⏸️ 策略已暂停 · 持仓保留')">⏸️ 暂停</button>
-              <button onclick="showToast('⚙️ 跳转到策略配置')">⚙️ 调整参数</button>
-              <button class="danger" onclick="if(confirm('将平仓全部5只持仓，预计回收约¥568,200。确认结算？'))showToast('🏁 策略已结算 · 全部持仓已平')">🏁 结算</button>
+            <div class="action-bar" id="actionBar">
+              <button class="warn" onclick="togglePause()">⏸️ 暂停</button>
+              <button onclick="location.href='8.2 strategy-config-preview.html'">⚙️ 调整参数</button>
+              <button class="danger" onclick="settleStrategy()">🏁 结算</button>
             </div>
           </div>
       
@@ -231,75 +182,95 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
 <script>
-function showToast(msg){
-  var t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast show';
-  clearTimeout(t._tid);t._tid=setTimeout(function(){t.className='toast';},2200);
-}
-
-/* Strategy switching with mock KPI data */
+/* Strategy data with per-strategy chart series */
 var strategyData = {
   'USR-FS-V1': {
-    status:'running', nav:'¥568,200', init:'起始 ¥500,000',
+    name:'我的自定义', status:'running', nav:'¥568,200', init:'起始 ¥500,000',
     dailyPnl:'+¥6,820', dailyPct:'+1.22%',
     cumReturn:'+13.64%', annual:'年化 +32.1%',
-    drawdown:'-3.2%', drawdownHint:'风险可控'
+    drawdown:'-3.2%', drawdownHint:'风险可控',
+    cumS:[0,1.10,2.30,3.50,4.80,6.00,7.20,8.40,9.20,8.00,6.80,5.70,6.90,8.10,9.30,10.40,11.60,12.80,13.00,13.64],
+    cumB:[0,0.20,0.50,0.70,1.00,1.20,1.50,1.70,2.00,1.80,1.60,1.50,1.80,2.10,2.40,2.60,2.90,3.10,3.30,3.50]
   },
   'SYS-LT-V1': {
-    status:'running', nav:'¥892,500', init:'起始 ¥700,000',
+    name:'龙头战法-强势突破', status:'running', nav:'¥892,500', init:'起始 ¥700,000',
     dailyPnl:'+¥12,340', dailyPct:'+1.48%',
     cumReturn:'+25.8%', annual:'年化 +48.3%',
-    drawdown:'-2.1%', drawdownHint:'回撤极低'
+    drawdown:'-2.1%', drawdownHint:'回撤极低',
+    cumS:[0,1.50,3.10,4.20,6.00,7.80,9.50,11.20,10.40,12.10,14.00,15.60,17.20,16.30,18.10,20.00,21.80,23.20,24.50,25.80],
+    cumB:[0,0.30,0.60,0.90,1.20,1.40,1.70,2.00,1.80,2.10,2.40,2.60,2.90,3.10,3.30,3.60,3.80,4.00,4.20,4.40]
   },
   'USR-GRID-V2': {
-    status:'paused', nav:'¥156,300', init:'起始 ¥150,000',
+    name:'网格交易V2', status:'paused', nav:'¥156,300', init:'起始 ¥150,000',
     dailyPnl:'+¥1,250', dailyPct:'+0.82%',
     cumReturn:'+5.6%', annual:'年化 +11.3%',
-    drawdown:'-1.8%', drawdownHint:'稳健运行'
+    drawdown:'-1.8%', drawdownHint:'稳健运行',
+    cumS:[0,0.30,0.60,1.00,0.70,1.20,1.60,1.30,1.90,2.30,2.00,2.60,3.00,2.70,3.30,3.80,4.20,4.80,5.20,5.60],
+    cumB:[0,0.20,0.40,0.60,0.80,1.00,1.20,1.40,1.60,1.80,2.00,2.20,2.40,2.60,2.80,3.00,3.20,3.40,3.60,3.80]
   }
 };
 
-function switchStrategy(id){
-  var d = strategyData[id];
-  document.getElementById('kpi-nav').textContent = d.nav;
-  document.getElementById('kpi-init').textContent = d.init;
-  document.getElementById('kpi-dailyPnl').textContent = d.dailyPnl;
-  document.getElementById('kpi-dailyPct').textContent = d.dailyPct;
-  document.getElementById('kpi-cumReturn').textContent = d.cumReturn;
-  document.getElementById('kpi-annual').textContent = d.annual;
-  document.getElementById('kpi-drawdown').textContent = d.drawdown;
-  document.getElementById('kpi-drawdownHint').textContent = d.drawdownHint;
+var STATUS_KEY = 'suying_mock_strategy_status';
 
-  var badge = document.getElementById('statusBadge');
-  var dot = badge.querySelector('.status-dot');
-  if(d.status==='running'){
-    badge.className = 'status-badge active';
-    dot.className = 'status-dot active';
-    badge.innerHTML = '<span class="status-dot active"></span>运行中';
-  } else {
-    badge.className = 'status-badge';
-    badge.innerHTML = '<span class="status-dot" style="background:var(--warn)"></span><span style="color:var(--warn)">已暂停</span>';
-  }
+function loadStatusOverrides(){
+  try{
+    var o = JSON.parse(localStorage.getItem(STATUS_KEY)||'{}');
+    Object.keys(o).forEach(function(k){ if(strategyData[k]) strategyData[k].status = o[k]; });
+  }catch(e){}
 }
 
-window.addEventListener('DOMContentLoaded',function(){
-  var chart=echarts.init(document.getElementById('navChart'),null,{renderer:'svg'});
+function saveStatus(id, status){
+  try{
+    var o = JSON.parse(localStorage.getItem(STATUS_KEY)||'{}');
+    o[id] = status;
+    localStorage.setItem(STATUS_KEY, JSON.stringify(o));
+  }catch(e){}
+}
+
+/* 跟单/部署副本（8.1/8.2 写入 localStorage）合并进策略列表 */
+function loadFollows(){
+  var follows = [];
+  try{ follows = JSON.parse(localStorage.getItem('suying_mock_follows')||'[]'); }catch(e){}
+  var sel = document.getElementById('strategySelect');
+  follows.forEach(function(f){
+    if(strategyData[f.code]) return;
+    var cumS = [0,0], cumB = [0,0];
+    for(var i=1;i<20;i++){ cumS.push(+(i*0.12).toFixed(2)); cumB.push(+(i*0.18).toFixed(2)); }
+    strategyData[f.code] = {
+      name:f.name || ('跟单副本 '+f.code), status:'running',
+      nav:'¥'+(f.amount?Math.round(f.amount).toLocaleString():'100,000'),
+      init:'起始 ¥'+(f.amount?Math.round(f.amount).toLocaleString():'100,000'),
+      dailyPnl:'+¥0', dailyPct:'+0.00%',
+      cumReturn:'+0.0%', annual:'年化 --',
+      drawdown:'0.0%', drawdownHint:'新建跟单 · 数据积累中',
+      cumS:cumS, cumB:cumB
+    };
+    var opt = document.createElement('option');
+    opt.value = f.code;
+    opt.textContent = f.code + ' ' + (f.name || '跟单副本');
+    sel.appendChild(opt);
+  });
+}
+
+var navChart = null;
+var posBodyHTML = null;
+
+function buildChartOption(d){
+  /* 与 KPI 一致：累计收益曲线 + 基准 + 回撤 */
   var dates=[],strategy=[],benchmark=[],drawdown=[];
-  var cumS=0,cumB=0,d=new Date('2026-05-01'),maxNav=1;
-  for(var i=0;i<60;i++){
-    d.setDate(d.getDate()+1);
-    if(d.getDay()===0||d.getDay()===6)continue;
-    var ds=d.toISOString().slice(0,10);
-    cumS+=Math.random()*.006-.0015;
-    cumB+=Math.random()*.002-.001;
-    var nav=1+cumS;
+  var dt=new Date('2026-06-01'),maxNav=1;
+  for(var i=0;i<d.cumS.length;i++){
+    while(dt.getDay()===0||dt.getDay()===6){ dt.setDate(dt.getDate()+1); }
+    var ds=dt.toISOString().slice(0,10);
+    dt.setDate(dt.getDate()+1);
+    var nav=1+d.cumS[i]/100;
     maxNav=Math.max(maxNav,nav);
     dates.push(ds);
-    strategy.push([ds,+(cumS*100).toFixed(2)]);
-    benchmark.push([ds,+(cumB*100).toFixed(2)]);
+    strategy.push([ds,d.cumS[i]]);
+    benchmark.push([ds,d.cumB[i]]);
     drawdown.push([ds,+(((nav-maxNav)/maxNav)*100).toFixed(2)]);
   }
-  chart.setOption({
+  return {
     grid:{left:55,right:18,top:15,bottom:35},
     xAxis:{type:'time',axisLabel:{fontSize:9,color:'#5e6a7d'}},
     yAxis:[
@@ -314,8 +285,100 @@ window.addEventListener('DOMContentLoaded',function(){
     dataZoom:[{type:'slider',bottom:5,height:18,borderColor:'#1f2733'}],
     tooltip:{trigger:'axis'},
     backgroundColor:'transparent'
-  });
-  window.addEventListener('resize',function(){chart.resize()});
+  };
+}
+
+function currentId(){ return document.getElementById('strategySelect').value; }
+
+function renderStatus(id){
+  var d = strategyData[id];
+  var badge = document.getElementById('statusBadge');
+  var bar = document.getElementById('actionBar');
+  if(d.status==='running'){
+    badge.className = 'status-badge active';
+    badge.innerHTML = '<span class="status-dot active"></span>运行中';
+    bar.innerHTML =
+      '<button class="warn" onclick="togglePause()">⏸️ 暂停</button>'+
+      '<button onclick="location.href=\'8.2 strategy-config-preview.html\'">⚙️ 调整参数</button>'+
+      '<button class="danger" onclick="settleStrategy()">🏁 结算</button>';
+  } else if(d.status==='paused'){
+    badge.className = 'status-badge paused';
+    badge.innerHTML = '<span class="status-dot" style="background:var(--warn)"></span>已暂停';
+    bar.innerHTML =
+      '<button class="primary" onclick="togglePause()">▶️ 恢复</button>'+
+      '<button onclick="location.href=\'8.2 strategy-config-preview.html\'">⚙️ 调整参数</button>'+
+      '<button class="danger" onclick="settleStrategy()">🏁 结算</button>';
+  } else {
+    badge.className = 'status-badge closed';
+    badge.innerHTML = '<span class="status-dot" style="background:var(--muted)"></span>已结算';
+    bar.innerHTML =
+      '<button class="primary" onclick="location.href=\'9.4 settlement-report-preview.html\'">📋 查看结算报告</button>'+
+      '<button onclick="location.href=\'8.2 strategy-config-preview.html\'">⚙️ 调整参数</button>';
+  }
+  /* 持仓区：已结算显示清空态，其余恢复原始持仓 */
+  var posBody = document.getElementById('posBody');
+  if(d.status==='closed'){
+    posBody.innerHTML = '<div class="pos-row" style="justify-content:center;color:var(--muted)">🏁 已结算 · 全部持仓已平仓</div>';
+    document.getElementById('posCount').textContent = '0 只';
+  } else if(posBodyHTML !== null){
+    posBody.innerHTML = posBodyHTML;
+    document.getElementById('posCount').textContent = '5 只';
+  }
+}
+
+function switchStrategy(id){
+  var d = strategyData[id];
+  document.getElementById('kpi-nav').textContent = d.nav;
+  document.getElementById('kpi-init').textContent = d.init;
+  document.getElementById('kpi-dailyPnl').textContent = d.dailyPnl;
+  document.getElementById('kpi-dailyPct').textContent = d.dailyPct;
+  document.getElementById('kpi-cumReturn').textContent = d.cumReturn;
+  document.getElementById('kpi-annual').textContent = d.annual;
+  document.getElementById('kpi-drawdown').textContent = d.drawdown;
+  document.getElementById('kpi-drawdownHint').textContent = d.drawdownHint;
+  document.getElementById('ccHeader').textContent = '📈 净值曲线 — ' + d.name;
+  renderStatus(id);
+  if(navChart) navChart.setOption(buildChartOption(d), true);
+}
+
+function togglePause(){
+  var id = currentId();
+  var d = strategyData[id];
+  d.status = d.status==='running' ? 'paused' : 'running';
+  saveStatus(id, d.status);
+  renderStatus(id);
+  if(d.status==='paused'){
+    suyingToast('⏸️ 策略已暂停 · 持仓保留 · 可恢复继续','warn');
+  } else {
+    suyingToast('▶️ 策略已恢复运行 · 执行器继续监控信号','ok');
+  }
+}
+
+function settleStrategy(){
+  var id = currentId();
+  var d = strategyData[id];
+  suyingConfirm('将平仓全部持仓，预计回收约'+d.nav+'。确认结算「'+d.name+'」？', function(){
+    d.status = 'closed';
+    saveStatus(id, 'closed');
+    renderStatus(id);
+    suyingToast('🏁 策略已结算 · 全部持仓已平 · 可查看结算报告','ok');
+  }, {title:'策略结算', okText:'确认结算', danger:true});
+}
+
+window.addEventListener('DOMContentLoaded',function(){
+  loadStatusOverrides();
+  loadFollows();
+  /* 若是刚跟单/部署跳转过来，自动选中该策略 */
+  var latest = null;
+  try{ latest = localStorage.getItem('suying_mock_follow_latest'); }catch(e){}
+  if(latest && strategyData[latest]){
+    document.getElementById('strategySelect').value = latest;
+    localStorage.removeItem('suying_mock_follow_latest');
+  }
+  navChart = echarts.init(document.getElementById('navChart'),(window.suyingEchartsTheme?suyingEchartsTheme():'dark'),{renderer:'svg'});
+  posBodyHTML = document.getElementById('posBody').innerHTML;
+  switchStrategy(currentId());
+  window.addEventListener('resize',function(){navChart.resize()});
 });
 </script>
 <script src="assets/preview-interactions.js"></script>

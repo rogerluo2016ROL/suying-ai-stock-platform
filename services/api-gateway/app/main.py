@@ -33,9 +33,21 @@ async def health_ready():
 
 @app.get("/api/v1/runtime/readiness")
 async def runtime_readiness():
-    from .runtime import probe_services
-    services = await probe_services()
-    return {"live": True, "ready": all(item.get("ready", False) for item in services.values()), "services": services}
+    from .runtime import probe_runtime_matrix
+    components = await probe_runtime_matrix()
+    # 兼容旧契约: services 只含微服务（不含 PG/Redis），ready 为微服务聚合。
+    service_components = [c for c in components if c["name"] not in ("postgresql", "redis")]
+    services = {
+        c["name"]: {"ready": c["status"] == "ok", "status": c["status"], "latency_ms": c["latency_ms"]}
+        for c in service_components
+    }
+    return {
+        "live": True,
+        "ready": all(c["status"] == "ok" for c in service_components),
+        "services": services,
+        "status": "ok" if all(c["status"] == "ok" for c in components) else "degraded",
+        "components": components,
+    }
 
 _rate_store: dict[str, list[float]] = {}
 # P1-8: request counter for periodic eviction of stale rate-store keys.

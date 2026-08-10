@@ -3,59 +3,18 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 数据更新 — 同步调度</title>
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --orange:#e8953b; --orange-bg:rgba(232,149,59,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
+/* ===== 页面私有样式（token / reset / 壳 / 通用组件由 assets/app.css 提供）===== */
+.legacy-preview .page-head{display:block}
 .page-head h1{font-size:21px;font-weight:700;margin-bottom:4px}
 .page-head .sub{font-size:12.5px;color:var(--muted);margin-bottom:14px}
 .role-badge{font-size:10px;padding:2px 10px;border-radius:10px;font-weight:600;flex-shrink:0;display:inline-block;margin-left:10px}
 .role-badge.admin{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(61,139,255,.25)}
 
-.pill-tabs{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;margin-bottom:14px}
-.pill-tab{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;background:transparent;border:none;font-family:var(--font-sans);transition:.12s;text-decoration:none;display:inline-block}
-.pill-tab:hover{color:var(--fg)}
-.pill-tab.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
-
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
-.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.card-h h3{font-size:13.5px;font-weight:650}
-.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
-.card-b{padding:16px}
+.card{margin-bottom:14px}
 .card-b.compact{padding:12px 16px}
 
 .section-title{font-size:12px;font-weight:650;color:var(--fg-2);margin-bottom:8px;margin-top:16px;display:flex;align-items:center;gap:6px}
@@ -127,8 +86,13 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .footer-bar .sep{width:1px;height:12px;background:var(--border)}
 
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
+
+/* 调度编辑弹窗（复用 .dlg-* 壳） */
+.su-form-row{margin-bottom:10px}
+.su-form-row label{font-size:10.5px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px}
+.su-form-row select,.su-form-row input{width:100%;padding:6px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--fg);font-size:11.5px;font-family:var(--font-sans);box-sizing:border-box}
+.su-form-row .hint{font-size:9.5px;color:var(--muted);margin-top:3px}
+.su-form-row input.err{border-color:var(--up)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -154,31 +118,35 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <div class="card-b compact">
                   <div class="toggle-row">
                     自动调度:
-                    <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-                    <span style="color:var(--down);font-weight:650;font-size:11px">已启用</span>
+                    <div class="toggle on" id="autoToggle"></div>
+                    <span id="autoToggleText" style="color:var(--down);font-weight:650;font-size:11px">已启用</span>
                   </div>
                   <div class="config-item">
                     <label>全量同步频率</label>
-                    <select><option>每天收盘后 (18:00)</option><option>每天两次 (06:00, 18:00)</option><option>每小时</option><option>自定义 Cron</option></select>
+                    <select id="cfgFullFreq"><option>每天收盘后 (18:00)</option><option>每天两次 (06:00, 18:00)</option><option>每小时</option><option>自定义 Cron</option></select>
+                  </div>
+                  <div class="config-item" id="customCronRow" style="display:none">
+                    <label>自定义 Cron 表达式</label>
+                    <input type="text" id="cfgCustomCron" placeholder="如: 0 18 * * 1-5 (分 时 日 月 周)"/>
                   </div>
                   <div class="config-item">
                     <label>增量同步频率</label>
-                    <select><option>每 30 分钟</option><option>每小时</option><option>关闭 (仅全量)</option></select>
+                    <select id="cfgIncrFreq"><option>每 30 分钟</option><option>每小时</option><option>关闭 (仅全量)</option></select>
                   </div>
                   <div class="config-item">
                     <label>重试策略</label>
-                    <select><option>3 次 · 间隔 5 分钟</option><option>5 次 · 间隔 2 分钟</option><option>不重试</option></select>
+                    <select id="cfgRetry"><option>3 次 · 间隔 5 分钟</option><option>5 次 · 间隔 2 分钟</option><option>不重试</option></select>
                   </div>
-                  <button style="margin-top:8px;padding:5px 20px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:600;font-size:12px;cursor:pointer;font-family:var(--font-sans)">保存配置</button>
+                  <button id="cfgSaveBtn" onclick="saveScheduleConfig()" style="margin-top:8px;padding:5px 20px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;font-weight:600;font-size:12px;cursor:pointer;font-family:var(--font-sans)">保存配置</button>
                 </div>
               </div>
       
               <!-- Schedule List -->
               <div class="card">
-                <div class="card-h"><h3>📅 调度任务列表</h3><span class="meta">8 个调度 · 5 启用 · 1 暂停</span></div>
+                <div class="card-h"><h3>📅 调度任务列表</h3><span class="meta" id="schMeta">6 个调度 · 5 启用 · 1 暂停</span></div>
                 <div class="card-b compact">
-                  <button class="add-btn" onclick="alert('新建调度面板')">➕ 新建调度</button>
-                  <table class="sch-table">
+                  <button class="add-btn" onclick="openSchedDialog()">➕ 新建调度</button>
+                  <table class="sch-table" id="schTable">
                     <thead>
                       <tr><th>#</th><th>Cron</th><th>名称</th><th>分类</th><th>下次运行</th><th>状态</th><th></th></tr>
                     </thead>
@@ -189,7 +157,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                         <td><span class="cat-badge" style="background:var(--accent-dim);color:var(--accent)">日K</span></td>
                         <td class="next-run">06-26 18:00</td>
                         <td><span class="status-badge status-waiting">⏳ 等待</span></td>
-                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="if(confirm('删除?'))this.closest('tr').remove()">🗑️</button></td>
+                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="suyingConfirm('确认删除该调度任务？', () => { this.closest('tr').remove(); }, {title:'删除调度', okText:'删除', danger:true})">🗑️</button></td>
                       </tr>
                       <tr>
                         <td class="idx">2</td><td class="cron">*/30 9-15 * * 1-5</td>
@@ -197,7 +165,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                         <td><span class="cat-badge" style="background:var(--down-bg);color:var(--down)">行情</span></td>
                         <td class="next-run">06-26 15:00</td>
                         <td><span class="status-badge status-waiting">⏳ 等待</span></td>
-                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="if(confirm('删除?'))this.closest('tr').remove()">🗑️</button></td>
+                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="suyingConfirm('确认删除该调度任务？', () => { this.closest('tr').remove(); }, {title:'删除调度', okText:'删除', danger:true})">🗑️</button></td>
                       </tr>
                       <tr>
                         <td class="idx">3</td><td class="cron">0 9 * * 1-5</td>
@@ -205,7 +173,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                         <td><span class="cat-badge" style="background:var(--warn-bg);color:var(--warn)">竞价</span></td>
                         <td class="next-run">06-27 09:00</td>
                         <td><span class="status-badge status-waiting">⏳ 等待</span></td>
-                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="if(confirm('删除?'))this.closest('tr').remove()">🗑️</button></td>
+                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="suyingConfirm('确认删除该调度任务？', () => { this.closest('tr').remove(); }, {title:'删除调度', okText:'删除', danger:true})">🗑️</button></td>
                       </tr>
                       <tr>
                         <td class="idx">4</td><td class="cron">0 4 * * *</td>
@@ -213,7 +181,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                         <td><span class="cat-badge" style="background:rgba(154,167,184,.12);color:var(--muted)">系统</span></td>
                         <td class="next-run">06-27 04:00</td>
                         <td><span class="status-badge status-waiting">⏳ 等待</span></td>
-                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="if(confirm('删除?'))this.closest('tr').remove()">🗑️</button></td>
+                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="suyingConfirm('确认删除该调度任务？', () => { this.closest('tr').remove(); }, {title:'删除调度', okText:'删除', danger:true})">🗑️</button></td>
                       </tr>
                       <tr>
                         <td class="idx">5</td><td class="cron">*/5 9-15 * * 1-5</td>
@@ -221,7 +189,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                         <td><span class="cat-badge" style="background:var(--accent-dim);color:var(--accent)">日K</span></td>
                         <td class="next-run" style="color:var(--muted)">—</td>
                         <td><span class="status-badge status-paused">⏸️ 暂停</span></td>
-                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="if(confirm('删除?'))this.closest('tr').remove()">🗑️</button></td>
+                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="suyingConfirm('确认删除该调度任务？', () => { this.closest('tr').remove(); }, {title:'删除调度', okText:'删除', danger:true})">🗑️</button></td>
                       </tr>
                       <tr>
                         <td class="idx">6</td><td class="cron">0 0 * * 0</td>
@@ -229,7 +197,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                         <td><span class="cat-badge" style="background:var(--down-bg);color:var(--down)">因子</span></td>
                         <td class="next-run">06-29 00:00</td>
                         <td><span class="status-badge status-waiting">⏳ 等待</span></td>
-                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="if(confirm('删除?'))this.closest('tr').remove()">🗑️</button></td>
+                        <td><button class="action-btn">✏️</button><button class="action-btn del" onclick="suyingConfirm('确认删除该调度任务？', () => { this.closest('tr').remove(); }, {title:'删除调度', okText:'删除', danger:true})">🗑️</button></td>
                       </tr>
                     </tbody>
                   </table>
@@ -270,31 +238,31 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
               <div class="card">
                 <div class="card-h"><h3>⏱️ 下次运行倒计时</h3><span class="meta" style="color:var(--down)">自动刷新</span></div>
                 <div class="card-b compact">
-                  <div class="cd-grid">
-                    <div class="cd-item">
-                      <span class="cd-time">15:00</span>
+                  <div class="cd-grid" id="cdGrid">
+                    <div class="cd-item" data-cron="*/30 9-15 * * 1-5">
+                      <span class="cd-time">--:--</span>
                       <span class="cd-name">增量分钟线</span>
-                      <span class="cd-remaining soon mono">剩余 25m</span>
+                      <span class="cd-remaining normal mono">计算中…</span>
                     </div>
-                    <div class="cd-item">
-                      <span class="cd-time">18:00</span>
+                    <div class="cd-item" data-cron="0 18 * * 1-5">
+                      <span class="cd-time">--:--</span>
                       <span class="cd-name">全量日K同步</span>
-                      <span class="cd-remaining normal mono">剩余 3h 25m</span>
+                      <span class="cd-remaining normal mono">计算中…</span>
                     </div>
-                    <div class="cd-item">
-                      <span class="cd-time">09:00</span>
-                      <span class="cd-name">竞价快照 (明日)</span>
-                      <span class="cd-remaining normal mono">剩余 18h 25m</span>
+                    <div class="cd-item" data-cron="0 9 * * 1-5">
+                      <span class="cd-time">--:--</span>
+                      <span class="cd-name">竞价快照</span>
+                      <span class="cd-remaining normal mono">计算中…</span>
                     </div>
-                    <div class="cd-item">
-                      <span class="cd-time">04:00</span>
-                      <span class="cd-name">完整性检查 (明日)</span>
-                      <span class="cd-remaining normal mono">剩余 13h 25m</span>
+                    <div class="cd-item" data-cron="0 4 * * *">
+                      <span class="cd-time">--:--</span>
+                      <span class="cd-name">数据完整性检查</span>
+                      <span class="cd-remaining normal mono">计算中…</span>
                     </div>
-                    <div class="cd-item">
-                      <span class="cd-time">00:00</span>
-                      <span class="cd-name">周度因子 (周日)</span>
-                      <span class="cd-remaining normal mono">剩余 2d 9h</span>
+                    <div class="cd-item" data-cron="0 0 * * 0">
+                      <span class="cd-time">--:--</span>
+                      <span class="cd-name">周度因子计算</span>
+                      <span class="cd-remaining normal mono">计算中…</span>
                     </div>
                   </div>
                 </div>
@@ -354,14 +322,284 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
           <div class="footer-bar">
             <span>8 调度 · 5 启用 · 5 数据源 · Tushare + 东方财富 + 新浪财经</span>
             <span class="sep"></span>
-            <span style="color:var(--accent)">返回数据总览 →</span>
+            <a href="15.0 data-update-preview.html" style="color:var(--accent);text-decoration:none">返回数据总览 →</a>
           </div>
     </main>
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
+<script>
+/* 下次运行倒计时：按 mock cron 本地计算下一触发时间，30s 刷新 */
+function cronField(f) {
+  if (f === '*') return function(){ return true; };
+  if (f.indexOf('*/') === 0) { var s = +f.slice(2); return function(v){ return v % s === 0; }; }
+  if (f.indexOf('-') > 0) { var p = f.split('-'), a = +p[0], b = +p[1]; return function(v){ return v >= a && v <= b; }; }
+  var n = +f; return function(v){ return v === n; };
+}
+function cronNext(cron) {
+  var f = cron.split(/\s+/);
+  var mm = cronField(f[0]), hh = cronField(f[1]), dw = cronField(f[4]);
+  var t = new Date(); t.setSeconds(0, 0); t = new Date(t.getTime() + 60000);
+  for (var i = 0; i < 14 * 24 * 60; i++) {
+    if (mm(t.getMinutes()) && hh(t.getHours()) && dw(t.getDay())) return t;
+    t = new Date(t.getTime() + 60000);
+  }
+  return null;
+}
+function fmtRemain(ms) {
+  var m = Math.max(0, Math.round(ms / 60000));
+  if (m < 1) return '剩余 <1m';
+  if (m < 60) return '剩余 ' + m + 'm';
+  var h = Math.floor(m / 60), d = Math.floor(h / 24);
+  if (d > 0) return '剩余 ' + d + 'd ' + (h % 24) + 'h';
+  return '剩余 ' + h + 'h ' + (m % 60) + 'm';
+}
+function tickCountdown() {
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+  document.querySelectorAll('#cdGrid .cd-item').forEach(function(item){
+    var cron = item.getAttribute('data-cron');
+    var next = cronNext(cron);
+    if (!next) return;
+    var tEl = item.querySelector('.cd-time');
+    var rEl = item.querySelector('.cd-remaining');
+    tEl.textContent = pad(next.getHours()) + ':' + pad(next.getMinutes());
+    tEl.title = '下次运行: ' + (next.getMonth() + 1) + '-' + pad(next.getDate()) + ' ' + pad(next.getHours()) + ':' + pad(next.getMinutes()) + ' · cron: ' + cron;
+    var ms = next - new Date();
+    rEl.textContent = fmtRemain(ms);
+    rEl.className = 'cd-remaining mono ' + (ms < 15 * 60000 ? 'imminent' : (ms < 60 * 60000 ? 'soon' : 'normal'));
+  });
+}
+tickCountdown();
+setInterval(tickCountdown, 30000);
 
+/* ===== 通用弹窗（复用 .dlg-* 壳） ===== */
+function suDialog(title, bodyHTML, ops){
+  closeSuDialog();
+  var mask = document.createElement('div');
+  mask.className = 'dlg-mask'; mask.id = 'suDlgMask';
+  mask.innerHTML = '<div class="dlg" role="dialog" aria-modal="true" style="width:min(420px,calc(100vw - 48px))">' +
+    '<div class="dlg-title"></div><div class="dlg-body"></div><div class="dlg-ops"></div></div>';
+  mask.querySelector('.dlg-title').textContent = title;
+  mask.querySelector('.dlg-body').innerHTML = bodyHTML;
+  var opsBox = mask.querySelector('.dlg-ops');
+  (ops || [{label:'关闭'}]).forEach(function(op){
+    var b = document.createElement('button');
+    b.className = 'btn ' + (op.kind || '');
+    b.textContent = op.label;
+    b.addEventListener('click', function(){ if (op.onClick) op.onClick(); else closeSuDialog(); });
+    opsBox.appendChild(b);
+  });
+  mask.addEventListener('click', function(e){ if (e.target === mask) closeSuDialog(); });
+  document.body.appendChild(mask);
+  return mask;
+}
+function closeSuDialog(){ var m = document.getElementById('suDlgMask'); if (m) m.remove(); }
+
+/* ===== 自动调度总开关 ===== */
+function toggleAutoSched(){
+  var t = document.getElementById('autoToggle');
+  var txt = document.getElementById('autoToggleText');
+  t.classList.toggle('on');
+  var on = t.classList.contains('on');
+  txt.textContent = on ? '已启用' : '已停用';
+  txt.style.color = on ? 'var(--down)' : 'var(--muted)';
+  suyingToast(on ? '自动调度已启用 · 全部任务按计划运行' : '自动调度已停用 · 仅保留手动触发', on ? 'ok' : 'warn');
+}
+
+/* ===== 全局配置保存（含自定义 Cron 校验） ===== */
+function isValidCron(s){
+  var f = (s || '').trim().split(/\s+/);
+  if (f.length !== 5) return false;
+  return f.every(function(x){ return /^[\d\*\-,\/]+$/.test(x); });
+}
+function saveScheduleConfig(){
+  var full = document.getElementById('cfgFullFreq').value;
+  var incr = document.getElementById('cfgIncrFreq').value;
+  var retry = document.getElementById('cfgRetry').value;
+  var cronInput = document.getElementById('cfgCustomCron');
+  if (full === '自定义 Cron') {
+    if (!isValidCron(cronInput.value)) {
+      cronInput.classList.add('err');
+      suyingToast('Cron 表达式格式不正确 · 需 5 段 (分 时 日 月 周)，如 0 18 * * 1-5', 'error');
+      return;
+    }
+    cronInput.classList.remove('err');
+  }
+  var cfg = { autoEnabled: document.getElementById('autoToggle').classList.contains('on'), full: full, customCron: full === '自定义 Cron' ? cronInput.value.trim() : null, incr: incr, retry: retry };
+  try { localStorage.setItem('suying_mock_schedule_config', JSON.stringify(cfg)); } catch(e){}
+  suyingToast('调度配置已保存 · 全量: ' + (cfg.customCron || full) + ' · 增量: ' + incr, 'ok');
+}
+
+/* ===== 调度任务 CRUD ===== */
+var CAT_STYLE = {
+  '日K': 'background:var(--accent-dim);color:var(--accent)',
+  '行情': 'background:var(--down-bg);color:var(--down)',
+  '竞价': 'background:var(--warn-bg);color:var(--warn)',
+  '因子': 'background:var(--down-bg);color:var(--down)',
+  '系统': 'background:rgba(154,167,184,.12);color:var(--muted)'
+};
+function fmtNextRun(d){
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+  return pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function schRows(){ return Array.prototype.slice.call(document.querySelectorAll('#schTable tbody tr')); }
+function isRowPaused(tr){ return !!tr.querySelector('.status-paused'); }
+function updateSchMeta(){
+  var rows = schRows();
+  var paused = rows.filter(isRowPaused).length;
+  document.getElementById('schMeta').textContent = rows.length + ' 个调度 · ' + (rows.length - paused) + ' 启用 · ' + paused + ' 暂停';
+}
+function renumberRows(){
+  schRows().forEach(function(tr, i){ tr.querySelector('.idx').textContent = i + 1; });
+}
+/* 倒计时面板联动：启用任务出现在倒计时中，暂停/删除则移除 */
+function syncCountdownItem(tr){
+  var id = tr.getAttribute('data-sched');
+  var grid = document.getElementById('cdGrid');
+  var existing = grid.querySelector('.cd-item[data-sched="' + id + '"]');
+  if (isRowPaused(tr)) { if (existing) existing.remove(); return; }
+  if (!existing) {
+    var div = document.createElement('div');
+    div.className = 'cd-item';
+    div.setAttribute('data-sched', id);
+    div.setAttribute('data-cron', tr.querySelector('.cron').textContent.trim());
+    div.innerHTML = '<span class="cd-time">--:--</span><span class="cd-name"></span><span class="cd-remaining normal mono">计算中…</span>';
+    grid.appendChild(div);
+    existing = div;
+  }
+  existing.setAttribute('data-cron', tr.querySelector('.cron').textContent.trim());
+  existing.querySelector('.cd-name').textContent = tr.querySelector('.name-cell').textContent.trim();
+  tickCountdown();
+}
+function openSchedDialog(btn){
+  var tr = btn ? btn.closest('tr') : null;
+  var name = tr ? tr.querySelector('.name-cell').textContent.trim() : '';
+  var cron = tr ? tr.querySelector('.cron').textContent.trim() : '';
+  var cat = tr ? tr.querySelector('.cat-badge').textContent.trim() : '日K';
+  var enabled = tr ? !isRowPaused(tr) : true;
+  var catOpts = Object.keys(CAT_STYLE).map(function(c){
+    return '<option' + (c === cat ? ' selected' : '') + '>' + c + '</option>';
+  }).join('');
+  suDialog(tr ? '编辑调度 · ' + name : '新建调度',
+    '<div class="su-form-row"><label>任务名称</label><input type="text" id="suSchName" value="' + name.replace(/"/g,'&quot;') + '" placeholder="如: 全量日K同步"/></div>' +
+    '<div class="su-form-row"><label>Cron 表达式</label><input type="text" id="suSchCron" value="' + cron + '" placeholder="0 18 * * 1-5"/><div class="hint">5 段: 分 时 日 月 周 · 支持 * , - / 与数字</div></div>' +
+    '<div class="su-form-row"><label>分类</label><select id="suSchCat">' + catOpts + '</select></div>' +
+    '<div class="su-form-row"><label>状态</label><select id="suSchEnabled"><option' + (enabled ? ' selected' : '') + '>启用</option><option' + (!enabled ? ' selected' : '') + '>暂停</option></select></div>',
+    [{label:'取消'}, {label: tr ? '保存修改' : '创建调度', kind:'primary', onClick:function(){
+      var nameEl = document.getElementById('suSchName');
+      var cronEl = document.getElementById('suSchCron');
+      var ok = true;
+      if (!nameEl.value.trim()) { nameEl.classList.add('err'); ok = false; } else nameEl.classList.remove('err');
+      if (!isValidCron(cronEl.value)) { cronEl.classList.add('err'); ok = false; } else cronEl.classList.remove('err');
+      if (!ok) { suyingToast('请检查表单 · 名称必填，Cron 需为 5 段合法表达式', 'error'); return; }
+      var newCat = document.getElementById('suSchCat').value;
+      var newEnabled = document.getElementById('suSchEnabled').value === '启用';
+      var cronVal = cronEl.value.trim();
+      var next = newEnabled ? cronNext(cronVal) : null;
+      var statusHTML = newEnabled
+        ? '<span class="status-badge status-waiting">⏳ 等待</span>'
+        : '<span class="status-badge status-paused">⏸️ 暂停</span>';
+      var nextHTML = next ? fmtNextRun(next) : '<span style="color:var(--muted)">—</span>';
+      if (tr) {
+        tr.querySelector('.cron').textContent = cronVal;
+        tr.querySelector('.name-cell').textContent = nameEl.value.trim();
+        var badge = tr.querySelector('.cat-badge');
+        badge.textContent = newCat;
+        badge.setAttribute('style', CAT_STYLE[newCat]);
+        tr.querySelector('.next-run').innerHTML = nextHTML;
+        tr.querySelector('.status-badge').outerHTML = statusHTML;
+        tr.querySelector('.pause-toggle').textContent = newEnabled ? '⏸️' : '▶️';
+        syncCountdownItem(tr);
+        closeSuDialog();
+        suyingToast('调度「' + nameEl.value.trim() + '」已更新', 'ok');
+      } else {
+        var tbody = document.querySelector('#schTable tbody');
+        var newTr = document.createElement('tr');
+        newTr.setAttribute('data-sched', 'u' + Date.now());
+        newTr.innerHTML =
+          '<td class="idx"></td><td class="cron">' + cronVal.replace(/</g,'&lt;') + '</td>' +
+          '<td class="name-cell">' + nameEl.value.trim().replace(/</g,'&lt;') + '</td>' +
+          '<td><span class="cat-badge" style="' + CAT_STYLE[newCat] + '">' + newCat + '</span></td>' +
+          '<td class="next-run">' + nextHTML + '</td>' +
+          '<td>' + statusHTML + '</td>' +
+          '<td><button class="action-btn" onclick="openSchedDialog(this)">✏️</button>' +
+          '<button class="action-btn pause-toggle" onclick="toggleSchedRow(this)">' + (newEnabled ? '⏸️' : '▶️') + '</button>' +
+          '<button class="action-btn del" onclick="deleteSchedRow(this)">🗑️</button></td>';
+        tbody.appendChild(newTr);
+        renumberRows();
+        syncCountdownItem(newTr);
+        updateSchMeta();
+        closeSuDialog();
+        suyingToast('调度「' + nameEl.value.trim() + '」已创建' + (next ? ' · 下次运行 ' + fmtNextRun(next) : ''), 'ok');
+      }
+    }}]);
+}
+function toggleSchedRow(btn){
+  var tr = btn.closest('tr');
+  var name = tr.querySelector('.name-cell').textContent.trim();
+  var cron = tr.querySelector('.cron').textContent.trim();
+  if (isRowPaused(tr)) {
+    var next = cronNext(cron);
+    tr.querySelector('.status-badge').outerHTML = '<span class="status-badge status-waiting">⏳ 等待</span>';
+    tr.querySelector('.next-run').innerHTML = next ? fmtNextRun(next) : '<span style="color:var(--muted)">—</span>';
+    btn.textContent = '⏸️';
+    syncCountdownItem(tr);
+    suyingToast('调度「' + name + '」已启用' + (next ? ' · 下次运行 ' + fmtNextRun(next) : ''), 'ok');
+  } else {
+    tr.querySelector('.status-badge').outerHTML = '<span class="status-badge status-paused">⏸️ 暂停</span>';
+    tr.querySelector('.next-run').innerHTML = '<span style="color:var(--muted)">—</span>';
+    btn.textContent = '▶️';
+    syncCountdownItem(tr);
+    suyingToast('调度「' + name + '」已暂停', 'warn');
+  }
+  updateSchMeta();
+}
+function deleteSchedRow(btn){
+  var tr = btn.closest('tr');
+  var name = tr.querySelector('.name-cell').textContent.trim();
+  suyingConfirm('确认删除调度「' + name + '」？删除后不再自动执行。', function(){
+    var grid = document.getElementById('cdGrid');
+    var cd = grid.querySelector('.cd-item[data-sched="' + tr.getAttribute('data-sched') + '"]');
+    if (cd) cd.remove();
+    tr.remove();
+    renumberRows();
+    updateSchMeta();
+    suyingToast('调度「' + name + '」已删除', 'ok');
+  }, {title:'删除调度', okText:'删除', danger:true});
+}
+
+/* ===== 初始化绑定（须在 preview-interactions.js 之前执行） ===== */
+(function bindStaticControls(){
+  document.getElementById('autoToggle').addEventListener('click', toggleAutoSched);
+  document.getElementById('cfgFullFreq').addEventListener('change', function(){
+    var custom = this.value === '自定义 Cron';
+    document.getElementById('customCronRow').style.display = custom ? '' : 'none';
+  });
+  // 行内操作：✏️ 编辑 + 启停 + 🗑️ 删除；为存量行补 data-sched 与倒计时联动
+  var cdNames = { 's2':'增量分钟线', 's1':'全量日K同步', 's3':'竞价快照', 's4':'数据完整性检查', 's6':'周度因子计算' };
+  schRows().forEach(function(tr, i){
+    var id = 's' + (i + 1);
+    tr.setAttribute('data-sched', id);
+    var actionCell = tr.querySelectorAll('td')[6];
+    var editBtn = actionCell.querySelector('.action-btn:not(.del)');
+    var delBtn = actionCell.querySelector('.action-btn.del');
+    editBtn.setAttribute('onclick', 'openSchedDialog(this)');
+    var pauseBtn = document.createElement('button');
+    pauseBtn.className = 'action-btn pause-toggle';
+    pauseBtn.setAttribute('onclick', 'toggleSchedRow(this)');
+    pauseBtn.textContent = isRowPaused(tr) ? '▶️' : '⏸️';
+    actionCell.insertBefore(pauseBtn, delBtn);
+    delBtn.setAttribute('onclick', 'deleteSchedRow(this)');
+    // 倒计时项关联
+    var name = tr.querySelector('.name-cell').textContent.trim();
+    document.querySelectorAll('#cdGrid .cd-item').forEach(function(cd){
+      if (cd.querySelector('.cd-name').textContent.trim() === name) cd.setAttribute('data-sched', id);
+    });
+  });
+  updateSchMeta();
+})();
+</script>
 <script src="assets/preview-interactions.js"></script>
 </body>
 </html>

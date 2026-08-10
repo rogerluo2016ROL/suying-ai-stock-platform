@@ -10,6 +10,13 @@ import Backtest from '../pages/Backtest'
 
 const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
+  listInstances: vi.fn(),
+  getInstance: vi.fn(),
+  getInstanceLog: vi.fn(),
+  startInstance: vi.fn(),
+  pauseInstance: vi.fn(),
+  resumeInstance: vi.fn(),
+  stopInstance: vi.fn(),
   getRiskVerdicts: vi.fn(),
   getDecisionContexts: vi.fn(),
   getOrders: vi.fn(),
@@ -26,6 +33,15 @@ vi.mock('../api/client', () => ({
     post: vi.fn(),
     put: vi.fn(),
     delete: vi.fn(),
+  },
+  strategyApi: {
+    listInstances: mocks.listInstances,
+    getInstance: mocks.getInstance,
+    getInstanceLog: mocks.getInstanceLog,
+    startInstance: mocks.startInstance,
+    pauseInstance: mocks.pauseInstance,
+    resumeInstance: mocks.resumeInstance,
+    stopInstance: mocks.stopInstance,
   },
   tradeApi: {
     getRiskVerdicts: mocks.getRiskVerdicts,
@@ -48,70 +64,49 @@ const chain = {
 
 function setupMocks() {
   mocks.apiGet.mockReset()
+  mocks.listInstances.mockReset()
+  mocks.getInstance.mockReset()
+  mocks.getInstanceLog.mockReset()
+  mocks.startInstance.mockReset()
   mocks.getRiskVerdicts.mockReset()
   mocks.getDecisionContexts.mockReset()
   mocks.getOrders.mockReset()
   mocks.getFactors.mockReset()
 
-  mocks.apiGet.mockImplementation((url: string) => {
-    if (url === '/strategy/list') {
-      return Promise.resolve({
-        data: {
-          strategies: [{
-            id: 'strat-b6',
-            name: 'B6 自动执行策略',
-            status: 'active',
-            source_type: 'scheme',
-            trade_mode: 'paper',
-            check_interval_sec: 60,
-            capital: 1_000_000,
-            picks_count: 1,
-            buy_conditions: [],
-            sell_conditions: [],
-            position_rules: { max_positions: 5, single_max_pct: 0.2, total_position_cap_pct: 0.8 },
-            risk_rules: { daily_max_loss_pct: 0.03, stop_loss_pct: 0.03, take_profit_pct: 0.15, trailing_stop_pct: 0 },
-            created_at: '2026-06-27T10:00:00Z',
-          }],
+  const stratData = {
+    id: 'strat-b6',
+    name: 'B6 自动执行策略',
+    status: 'active',
+    source_type: 'scheme',
+    trade_mode: 'paper',
+    check_interval_sec: 60,
+    capital: 1_000_000,
+    picks_count: 1,
+    buy_conditions: [],
+    sell_conditions: [],
+    position_rules: { max_positions: 5, single_max_pct: 0.2, total_position_cap_pct: 0.8 },
+    risk_rules: { daily_max_loss_pct: 0.03, stop_loss_pct: 0.03, take_profit_pct: 0.15, trailing_stop_pct: 0 },
+  }
+
+  mocks.listInstances.mockResolvedValue({
+    data: { strategies: [{ ...stratData, created_at: '2026-06-27T10:00:00Z' }] },
+  })
+  mocks.getInstance.mockResolvedValue({ data: { ...stratData, picks: [] } })
+  mocks.getInstanceLog.mockResolvedValue({
+    data: {
+      logs: [{
+        timestamp: '2026-06-27T10:31:00Z',
+        level: 'BUY',
+        message: `买单已提交: ${chain.code} - order_id=${chain.orderId}`,
+        details: {
+          code: chain.code,
+          order_id: chain.orderId,
+          decision_context_id: chain.decisionContextId,
+          plan_id: chain.planId,
+          candidate_id: chain.candidateId,
         },
-      })
-    }
-    if (url === '/strategy/strat-b6') {
-      return Promise.resolve({
-        data: {
-          id: 'strat-b6',
-          name: 'B6 自动执行策略',
-          status: 'active',
-          trade_mode: 'paper',
-          check_interval_sec: 60,
-          capital: 1_000_000,
-          picks_count: 1,
-          picks: [],
-          buy_conditions: [],
-          sell_conditions: [],
-          position_rules: { max_positions: 5, single_max_pct: 0.2, total_position_cap_pct: 0.8 },
-          risk_rules: { daily_max_loss_pct: 0.03, stop_loss_pct: 0.03, take_profit_pct: 0.15, trailing_stop_pct: 0 },
-        },
-      })
-    }
-    if (url === '/strategy/strat-b6/log') {
-      return Promise.resolve({
-        data: {
-          logs: [{
-            timestamp: '2026-06-27T10:31:00Z',
-            level: 'BUY',
-            message: `买单已提交: ${chain.code} - order_id=${chain.orderId}`,
-            details: {
-              code: chain.code,
-              order_id: chain.orderId,
-              decision_context_id: chain.decisionContextId,
-              plan_id: chain.planId,
-              candidate_id: chain.candidateId,
-            },
-          }],
-        },
-      })
-    }
-    return Promise.resolve({ data: {} })
+      }],
+    },
   })
 
   mocks.getRiskVerdicts.mockResolvedValue({
@@ -185,6 +180,7 @@ function renderChain(initialEntries = ['/auto-trade']) {
         <MemoryRouter initialEntries={initialEntries}>
           <Routes>
             <Route path="/auto-trade" element={<AutoTrade />} />
+            <Route path="/auto-trade/monitor" element={<AutoTrade />} />
             <Route path="/trade/risk-verdicts" element={<RiskVerdicts />} />
             <Route path="/trade/decision-contexts" element={<DecisionContexts />} />
             <Route path="/backtest" element={<Backtest />} />
@@ -203,7 +199,7 @@ describe('B6 全链路模拟盘联调守门', () => {
 
   it('AutoTrade 日志可以下钻到风控闸门再进入决策上下文', async () => {
     const user = userEvent.setup()
-    renderChain()
+    renderChain(['/auto-trade/monitor'])
 
     await user.click(await screen.findByRole('button', { name: '详情' }))
     await user.click(await screen.findByRole('button', { name: '风控' }))

@@ -350,6 +350,11 @@ a{color:var(--accent);text-decoration:none}
 .prototype-empty-state{display:flex;flex-direction:column;align-items:flex-start;gap:8px;border:1px dashed var(--border-2);
   border-radius:var(--radius);background:var(--surface-2);padding:16px;color:var(--fg-2);font-size:12px}
 .prototype-empty-state strong{font-size:13px;color:var(--fg)}
+.prototype-skeleton{display:flex;flex-direction:column;gap:10px;padding:4px 0}
+.prototype-skeleton .sk-row{height:34px;border-radius:var(--radius);
+  background:linear-gradient(90deg,var(--surface-2) 25%,var(--border) 50%,var(--surface-2) 75%);
+  background-size:200% 100%;animation:sk-pulse 1.2s ease-in-out infinite}
+@keyframes sk-pulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .side-rail{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .side-rail-head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border)}
 .side-rail-head h3{font-size:13.5px;font-weight:700;margin:0}

@@ -3,44 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 单股预测</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:16px 20px 28px}
+.warn{color:var(--warn)}
 
 /* Quick Select Bar */
 .qsb{display:flex;flex-direction:column;gap:5px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}
@@ -98,6 +65,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 /* Cards */
 .psc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .psc-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650;cursor:pointer}
+.psc-h:not([onclick]){cursor:default}
 .psc-h .arr{margin-left:auto;font-size:10px;color:var(--muted);transition:.2s}
 .psc-h .arr.open{transform:rotate(90deg)}
 .psc-b{padding:14px}
@@ -129,7 +97,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .fcr .ftk{flex:1;height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
 .fcr .ffl{height:100%;border-radius:3px}
 .fcr .fvl{font-family:var(--font-mono);font-size:11px;font-weight:650;width:32px;text-align:right;color:var(--fg-2)}
-.fcolors .t{background:var(--accent)} .fcolors .f{background:#7c3aed} .fcolors .b{background:var(--down)} .fcolors .s{background:var(--warn)}
+.fcolors .t{background:var(--accent)} .fcolors .f{background:#7db2ff} .fcolors .b{background:var(--down)} .fcolors .s{background:var(--warn)}
 
 /* Action Buttons */
 .da{display:flex;gap:8px;margin-top:6px}
@@ -172,7 +140,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <div class="qsc"><span class="n">中国平安</span><span class="c">601318</span></div>
                       <div class="qsc"><span class="n">五粮液</span><span class="c">000858</span></div>
                       <div class="qsc"><span class="n">阳光电源</span><span class="c">300274</span></div>
-                      <input type="text" placeholder="🔍 搜索代码/名称...">
+                      <input type="text" id="qsb-search" placeholder="🔍 搜索代码/名称...">
                     </div>
                   </div>
 <!-- Single Stock View -->
@@ -181,7 +149,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <div class="pcw">
                         <div class="chart-top">
                           <div>
-                            <div class="chart-title">宁德时代 300750 · Kronos 30日路径</div>
+                            <div class="chart-title" id="chart-title">宁德时代 300750 · Kronos 30日路径</div>
                             <div class="chart-sub">60日历史蜡烛 + 30日预测路径 + ±1σ置信区间</div>
                           </div>
                           <div class="chart-legend">
@@ -197,9 +165,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                             <span class="tc">预测30日</span>
                           </div>
                           <div class="level-strip">
-                            <span class="level-chip up">阻力 251.00</span>
-                            <span class="level-chip down">支撑 196.50</span>
-                            <span class="level-chip warn">止损 185.00</span>
+                            <span class="level-chip up" id="lv-res">阻力 251.00</span>
+                            <span class="level-chip down" id="lv-sup">支撑 196.50</span>
+                            <span class="level-chip warn" id="lv-stop">止损 185.00</span>
                           </div>
                         </div>
                         <div class="ch" id="chart-single"></div>
@@ -217,15 +185,15 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                           <div class="ovw">
                             <div class="mv">Kronos V2.3</div>
                             <div class="arw">
-                              <span class="cp">218.50</span>
+                              <span class="cp" id="ov-cp">218.50</span>
                               <span class="arrw">→</span>
-                              <span class="tp up">242.30</span>
+                              <span class="tp up" id="ov-tp">242.30</span>
                             </div>
-                            <div class="chp up">↑ +12.5%</div>
+                            <div class="chp up" id="ov-chp">↑ +12.5%</div>
                             <div class="cf">
                               <span class="lbl">置信度</span>
-                              <div class="tk"><div class="fl" style="width:78%;background:var(--accent)"></div></div>
-                              <span class="vl neu">78%</span>
+                              <div class="tk"><div class="fl" id="ov-conf-fl" style="width:78%;background:var(--accent)"></div></div>
+                              <span class="vl neu" id="ov-conf-vl">78%</span>
                             </div>
                           </div>
                         </div>
@@ -235,8 +203,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <div class="psc">
                         <div class="psc-h">📡 信号一致性</div>
                         <div class="psc-b" style="text-align:center">
-                          <div class="sbd ok">✅ 信号方向一致</div>
-                          <div style="font-size:10.5px;color:var(--muted);margin-top:6px">信号强度: 🟢 强买 82分 · 多因子共振</div>
+                          <div class="sbd ok" id="sig-badge">✅ 信号方向一致</div>
+                          <div style="font-size:10.5px;color:var(--muted);margin-top:6px" id="sig-sub">信号强度: 🟢 强买 82分 · 多因子共振</div>
                         </div>
                       </div>
             
@@ -279,9 +247,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <div class="psc">
                         <div class="psc-b">
                           <div class="da">
-                            <button class="ab p">设预警 🔔</button>
-                            <button class="ab">跳转诊断 →</button>
-                            <button class="ab">交易中心 →</button>
+                            <button class="ab p" id="btn-alert">设预警 🔔</button>
+                            <button class="ab" id="btn-diag">跳转诊断 →</button>
+                            <button class="ab" id="btn-trade">交易中心 →</button>
                           </div>
                         </div>
                       </div>
@@ -294,40 +262,45 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <script src="assets/shell.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-  var _seed = 42;
   var PRED_START = 60;
-  var CURRENT = 218.50;
-  var TARGET = 242.30;
-  var SUPPORT = 196.50;
-  var RESISTANCE = 251.00;
-  var STOP = 185.00;
 
-  function rnd(){
-    _seed = (_seed * 16807) % 2147483647;
-    return (_seed - 1) / 2147483646;
-  }
+  /* Mock 标的库：快选条 / 搜索 / ?code= 共用 */
+  var STOCKS = {
+    '300750': { name:'宁德时代', seed:42,  current:218.50, target:242.30, support:196.50, resistance:251.00, stop:185.00, conf:78, chg:12.5,  sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟢 强买 82分 · 多因子共振'} },
+    '688981': { name:'中芯国际', seed:77,  current:68.20,  target:73.80,  support:63.50,  resistance:78.00,  stop:60.00,  conf:72, chg:8.2,   sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟢 强买 76分 · 多因子共振'} },
+    '600519': { name:'贵州茅台', seed:101, current:1580.00,target:1660.00,support:1520.00,resistance:1720.00,stop:1480.00,conf:74, chg:5.1,   sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟡 买入 71分 · 技术资金共振'} },
+    '002594': { name:'比亚迪',   seed:55,  current:98.50,  target:96.40,  support:92.00,  resistance:104.00, stop:88.00,  conf:61, chg:-2.1,  sig:{cls:'ng', text:'⚠ 信号方向相悖', sub:'信号强度: 🟡 买入 64分 · 预测回落但信号偏多'} },
+    '603986': { name:'兆易创新', seed:133, current:152.00, target:168.50, support:141.00, resistance:178.00, stop:134.00, conf:75, chg:10.8,  sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟢 强买 79分 · 多因子共振'} },
+    '002371': { name:'北方华创', seed:201, current:385.00, target:420.00, support:360.00, resistance:445.00, stop:345.00, conf:80, chg:9.1,   sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟢 强买 84分 · 多因子共振'} },
+    '601012': { name:'隆基绿能', seed:88,  current:32.80,  target:35.20,  support:30.50,  resistance:37.00,  stop:29.00,  conf:68, chg:7.3,   sig:{cls:'wk', text:'⚠ 信号偏弱', sub:'信号强度: 🟡 买入 58分 · 建议回测页复核'} },
+    '601318': { name:'中国平安', seed:66,  current:52.30,  target:55.40,  support:49.80,  resistance:57.50,  stop:47.50,  conf:70, chg:5.9,   sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟡 买入 69分 · 技术资金共振'} },
+    '000858': { name:'五粮液',   seed:120, current:145.60, target:152.80, support:139.00, resistance:158.00, stop:134.00, conf:69, chg:4.9,   sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟡 买入 67分 · 技术资金共振'} },
+    '300274': { name:'阳光电源', seed:140, current:88.40,  target:96.20,  support:82.00,  resistance:101.00, stop:78.00,  conf:73, chg:8.8,   sig:{cls:'ok', text:'✅ 信号方向一致', sub:'信号强度: 🟢 强买 75分 · 多因子共振'} }
+  };
 
-  function rndRange(a, b){
-    return a + rnd() * (b - a);
-  }
+  var state = { code:'300750' };
+  var chartSingle = null;
 
-  function round2(n){
-    return Math.round(n * 100) / 100;
-  }
+  function round2(n){ return Math.round(n * 100) / 100; }
 
-  function genCandles(){
+  function genCandles(seed, current, target){
+    var s = seed;
+    function rnd(){ s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }
+    function rr(a, b){ return a + rnd() * (b - a); }
+    var k = current / 218.5; /* 波动幅度按价格量级缩放 */
+    var predDrift = (target - current) / 30;
     var candles = [];
-    var p = 176;
+    var p = round2(current * 0.8055);
     for (var i = 0; i < 90; i++) {
       var isPrediction = i >= PRED_START;
-      var drift = isPrediction ? 0.92 : 0.58;
-      var o = p + rndRange(-2.2, 2.4);
-      var c = o + drift + rndRange(-1.7, 2.8);
-      if (i === PRED_START - 1) c = CURRENT;
-      if (i === 89) c = TARGET;
-      var h = Math.max(o, c) + rndRange(0.8, 3.4);
-      var l = Math.min(o, c) - rndRange(0.8, 2.8);
-      var v = Math.floor(rndRange(3200, 14500));
+      var drift = isPrediction ? predDrift : 0.58 * k;
+      var o = p + rr(-2.2, 2.4) * k;
+      var c = o + drift + rr(-1.7, 2.8) * k;
+      if (i === PRED_START - 1) c = current;
+      if (i === 89) c = target;
+      var h = Math.max(o, c) + rr(0.8, 3.4) * k;
+      var l = Math.min(o, c) - rr(0.8, 2.8) * k;
+      var v = Math.floor(rr(3200, 14500));
       candles.push({
         open: round2(o),
         close: round2(c),
@@ -342,21 +315,7 @@ document.addEventListener('DOMContentLoaded', function(){
     return candles;
   }
 
-  function candleValue(c){
-    return [c.open, c.close, c.low, c.high];
-  }
-
-  var candles = genCandles();
-  var dates = candles.map(function(c, i){
-    return i < PRED_START ? c.date : 'P+' + String(i - PRED_START + 1).padStart(2, '0');
-  });
-  var maxHigh = Math.max.apply(null, candles.map(function(c){ return c.high; }));
-  var historicalCandles = candles.map(function(c, i){ return i < PRED_START ? candleValue(c) : '-'; });
-  var predictionCandles = candles.map(function(c, i){ return i >= PRED_START ? candleValue(c) : '-'; });
-  var predictionPath = candles.map(function(c, i){ return i >= PRED_START - 1 ? c.close : null; });
-  var lowerBounds = candles.map(function(c, i){ return i >= PRED_START - 1 ? round2(c.close * 0.918) : null; });
-  var upperDiff = candles.map(function(c, i){ return i >= PRED_START - 1 ? round2(c.close * 0.164) : null; });
-  var volumes = candles.map(function(c){ return c.volume; });
+  function candleValue(c){ return [c.open, c.close, c.low, c.high]; }
 
   function showFallback(message){
     var fallback = document.getElementById('chart-single-fallback');
@@ -365,17 +324,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if (message) fallback.querySelector('strong').textContent = message;
   }
 
-  function initSingleChart(){
-    var chartEl = document.getElementById('chart-single');
-    if (!chartEl) return;
-    if (!window.echarts) {
-      showFallback('ECharts 资源未加载');
-      return;
-    }
-    if (chartEl.clientHeight < 260) chartEl.style.minHeight = '430px';
-
-    var chartSingle = echarts.init(chartEl);
-    var option = {
+  function buildOption(d){
+    return {
       backgroundColor: 'transparent',
       animationDuration: 450,
       tooltip: {
@@ -390,19 +340,19 @@ document.addEventListener('DOMContentLoaded', function(){
         { left: 54, right: 24, top: '77%', height: '13%' }
       ],
       dataZoom: [
-        { type: 'inside', xAxisIndex: [0, 1], startValue: 0, endValue: candles.length - 1, zoomOnMouseWheel: false },
-        { type: 'slider', show: false, xAxisIndex: [0, 1], startValue: 0, endValue: candles.length - 1 }
+        { type: 'inside', xAxisIndex: [0, 1], startValue: 0, endValue: d.candles.length - 1, zoomOnMouseWheel: false },
+        { type: 'slider', show: false, xAxisIndex: [0, 1], startValue: 0, endValue: d.candles.length - 1 }
       ],
       xAxis: [
         {
           type: 'category',
-          data: dates,
+          data: d.dates,
           boundaryGap: true,
           axisLabel: { fontSize: 10, color: '#5e6a7d', interval: 7 },
           axisLine: { lineStyle: { color: '#1f2733' } },
           splitLine: { show: true, lineStyle: { color: 'rgba(31,39,51,.45)' } }
         },
-        { type: 'category', data: dates, gridIndex: 1, show: false }
+        { type: 'category', data: d.dates, gridIndex: 1, show: false }
       ],
       yAxis: [
         {
@@ -418,8 +368,8 @@ document.addEventListener('DOMContentLoaded', function(){
         {
           name: '预测窗口',
           type: 'bar',
-          data: candles.map(function(c, i){
-            return i >= PRED_START ? { value: maxHigh * 1.08, itemStyle: { color: 'rgba(61,139,255,.035)' } } : null;
+          data: d.candles.map(function(c, i){
+            return i >= PRED_START ? { value: d.maxHigh * 1.08, itemStyle: { color: 'rgba(61,139,255,.035)' } } : null;
           }),
           barWidth: '98%',
           xAxisIndex: 0,
@@ -430,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function(){
         {
           name: '置信区间下沿',
           type: 'line',
-          data: lowerBounds,
+          data: d.lowerBounds,
           lineStyle: { opacity: 0 },
           symbol: 'none',
           stack: 'confidence',
@@ -443,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function(){
         {
           name: '置信区间',
           type: 'line',
-          data: upperDiff,
+          data: d.upperDiff,
           lineStyle: { opacity: 0 },
           symbol: 'none',
           stack: 'confidence',
@@ -456,7 +406,7 @@ document.addEventListener('DOMContentLoaded', function(){
         {
           name: '历史K线',
           type: 'candlestick',
-          data: historicalCandles,
+          data: d.historicalCandles,
           itemStyle: {
             color: '#ff4d4f',
             color0: '#2ec27e',
@@ -469,7 +419,7 @@ document.addEventListener('DOMContentLoaded', function(){
         {
           name: '预测K线',
           type: 'candlestick',
-          data: predictionCandles,
+          data: d.predictionCandles,
           itemStyle: {
             color: 'rgba(255,77,79,.38)',
             color0: 'rgba(46,194,126,.38)',
@@ -482,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function(){
         {
           name: '预测路径',
           type: 'line',
-          data: predictionPath,
+          data: d.predictionPath,
           smooth: true,
           symbol: 'circle',
           symbolSize: 4,
@@ -497,38 +447,97 @@ document.addEventListener('DOMContentLoaded', function(){
             animation: false,
             label: { fontSize: 10 },
             data: [
-              { yAxis: RESISTANCE, label: { formatter: '阻力 ' + RESISTANCE, color: '#ff4d4f' }, lineStyle: { color: '#ff4d4f', type: 'dashed', width: 1 } },
-              { yAxis: SUPPORT, label: { formatter: '支撑 ' + SUPPORT, color: '#2ec27e' }, lineStyle: { color: '#2ec27e', type: 'dashed', width: 1 } },
-              { yAxis: STOP, label: { formatter: '止损 ' + STOP, color: '#f5a623' }, lineStyle: { color: '#f5a623', type: 'dashed', width: 1 } }
+              { yAxis: d.levels.resistance, label: { formatter: '阻力 ' + d.levels.resistance.toFixed(2), color: '#ff4d4f' }, lineStyle: { color: '#ff4d4f', type: 'dashed', width: 1 } },
+              { yAxis: d.levels.support, label: { formatter: '支撑 ' + d.levels.support.toFixed(2), color: '#2ec27e' }, lineStyle: { color: '#2ec27e', type: 'dashed', width: 1 } },
+              { yAxis: d.levels.stop, label: { formatter: '止损 ' + d.levels.stop.toFixed(2), color: '#f5a623' }, lineStyle: { color: '#f5a623', type: 'dashed', width: 1 } }
             ]
           },
           markPoint: {
             symbolKeepAspect: true,
             data: [
-              { coord: [52, candles[52].close], value: '★ B', symbol: 'pin', symbolSize: 30, itemStyle: { color: '#ff4d4f' }, label: { show: true, fontSize: 10, color: '#fff', fontWeight: 'bold' } },
-              { coord: [62, candles[62].close], value: '拐点', symbol: 'triangle', symbolRotate: 180, symbolSize: 22, itemStyle: { color: '#f5a623' }, label: { show: true, fontSize: 9, color: '#f5a623', position: 'top' } },
-              { coord: [82, candles[82].close], value: '▼ S', symbol: 'pin', symbolSize: 28, itemStyle: { color: '#2ec27e' }, label: { show: true, fontSize: 10, color: '#fff', fontWeight: 'bold' } }
+              { coord: [52, d.candles[52].close], value: '★ B', symbol: 'pin', symbolSize: 30, itemStyle: { color: '#ff4d4f' }, label: { show: true, fontSize: 10, color: '#fff', fontWeight: 'bold' } },
+              { coord: [62, d.candles[62].close], value: '拐点', symbol: 'triangle', symbolRotate: 180, symbolSize: 22, itemStyle: { color: '#f5a623' }, label: { show: true, fontSize: 9, color: '#f5a623', position: 'top' } },
+              { coord: [82, d.candles[82].close], value: '▼ S', symbol: 'pin', symbolSize: 28, itemStyle: { color: '#2ec27e' }, label: { show: true, fontSize: 10, color: '#fff', fontWeight: 'bold' } }
             ]
           }
         },
         {
           name: '成交量',
           type: 'bar',
-          data: volumes,
+          data: d.volumes,
           xAxisIndex: 1,
           yAxisIndex: 1,
           itemStyle: { color: 'rgba(61,139,255,.22)' }
         }
       ]
     };
+  }
 
-    chartSingle.setOption(option, true);
+  function buildChartData(s){
+    var candles = genCandles(s.seed, s.current, s.target);
+    return {
+      candles: candles,
+      dates: candles.map(function(c, i){
+        return i < PRED_START ? c.date : 'P+' + String(i - PRED_START + 1).padStart(2, '0');
+      }),
+      maxHigh: Math.max.apply(null, candles.map(function(c){ return c.high; })),
+      historicalCandles: candles.map(function(c, i){ return i < PRED_START ? candleValue(c) : '-'; }),
+      predictionCandles: candles.map(function(c, i){ return i >= PRED_START ? candleValue(c) : '-'; }),
+      predictionPath: candles.map(function(c, i){ return i >= PRED_START - 1 ? c.close : null; }),
+      lowerBounds: candles.map(function(c, i){ return i >= PRED_START - 1 ? round2(c.close * 0.918) : null; }),
+      upperDiff: candles.map(function(c, i){ return i >= PRED_START - 1 ? round2(c.close * 0.164) : null; }),
+      volumes: candles.map(function(c){ return c.volume; }),
+      levels: { resistance: s.resistance, support: s.support, stop: s.stop }
+    };
+  }
+
+  /* 切换标的：真实更新图表 + 概览 + 关键位 + 信号徽标 */
+  function loadStock(code){
+    var s = STOCKS[code];
+    if (!s) return;
+    state.code = code;
+    document.getElementById('chart-title').textContent = s.name + ' ' + code + ' · Kronos 30日路径';
+    document.getElementById('lv-res').textContent = '阻力 ' + s.resistance.toFixed(2);
+    document.getElementById('lv-sup').textContent = '支撑 ' + s.support.toFixed(2);
+    document.getElementById('lv-stop').textContent = '止损 ' + s.stop.toFixed(2);
+    document.getElementById('ov-cp').textContent = s.current.toFixed(2);
+    var up = s.target >= s.current;
+    var tp = document.getElementById('ov-tp');
+    tp.textContent = s.target.toFixed(2);
+    tp.className = 'tp ' + (up ? 'up' : 'down');
+    var chp = document.getElementById('ov-chp');
+    chp.textContent = (up ? '↑ +' : '↓ ') + s.chg.toFixed(1) + '%';
+    chp.className = 'chp ' + (up ? 'up' : 'down');
+    document.getElementById('ov-conf-fl').style.width = s.conf + '%';
+    document.getElementById('ov-conf-vl').textContent = s.conf + '%';
+    var sbd = document.getElementById('sig-badge');
+    sbd.className = 'sbd ' + s.sig.cls;
+    sbd.textContent = s.sig.text;
+    document.getElementById('sig-sub').textContent = s.sig.sub;
+    document.querySelectorAll('.qsc').forEach(function(c){
+      var codeEl = c.querySelector('.c');
+      c.classList.toggle('active', !!codeEl && codeEl.textContent === code);
+    });
+    document.querySelectorAll('.pcw .tc').forEach(function(c, i){ c.classList.toggle('on', i === 0); });
+    if (chartSingle) chartSingle.setOption(buildOption(buildChartData(s)), true);
+  }
+
+  function initSingleChart(){
+    var chartEl = document.getElementById('chart-single');
+    if (!chartEl) return;
+    if (!window.echarts) {
+      showFallback('ECharts 资源未加载');
+      return;
+    }
+    if (chartEl.clientHeight < 260) chartEl.style.minHeight = '430px';
+
+    chartSingle = echarts.init(chartEl, (window.suyingEchartsTheme?suyingEchartsTheme():'dark'));
 
     document.querySelectorAll('.pcw .tc').forEach(function(el, i){
       el.addEventListener('click', function(){
         document.querySelectorAll('.pcw .tc').forEach(function(c){ c.classList.remove('on'); });
         el.classList.add('on');
-        var last = candles.length - 1;
+        var last = 89;
         var start = 0;
         if (i === 1) start = PRED_START - 30;
         if (i === 2) start = PRED_START - 1;
@@ -541,11 +550,58 @@ document.addEventListener('DOMContentLoaded', function(){
     setTimeout(function(){ chartSingle.resize(); }, 450);
   }
 
+  /* 快选条：按 chip 上的代码切换标的 */
   document.querySelectorAll('.qsc').forEach(function(chip){
     chip.addEventListener('click', function(){
-      document.querySelectorAll('.qsc').forEach(function(c){ c.classList.remove('active'); });
-      chip.classList.add('active');
+      var codeEl = chip.querySelector('.c');
+      if (codeEl) loadStock(codeEl.textContent.trim());
     });
+  });
+
+  /* 搜索框：回车按代码/名称匹配，未命中给出提示 */
+  var searchInput = document.getElementById('qsb-search');
+  if (searchInput) {
+    searchInput.addEventListener('keydown', function(e){
+      if (e.key !== 'Enter') return;
+      var q = searchInput.value.trim();
+      if (!q) return;
+      var hit = Object.keys(STOCKS).find(function(code){
+        return code === q || STOCKS[code].name === q || STOCKS[code].name.indexOf(q) >= 0 || code.indexOf(q) === 0;
+      });
+      if (hit) {
+        loadStock(hit);
+        searchInput.value = '';
+        searchInput.blur();
+        if (window.suyingToast) suyingToast('已切换到 ' + STOCKS[hit].name + ' ' + hit, 'ok');
+      } else if (window.suyingToast) {
+        suyingToast('未找到标的「' + q + '」，请检查代码/名称', 'warn');
+      }
+    });
+  }
+
+  /* 动作按钮 */
+  document.getElementById('btn-alert').addEventListener('click', function(){
+    var s = STOCKS[state.code];
+    if (window.suyingConfirm) {
+      suyingConfirm('为 ' + s.name + ' (' + state.code + ') 设置价格预警：突破阻力 ' + s.resistance.toFixed(2) + ' / 跌破支撑 ' + s.support.toFixed(2) + ' 时提醒？', function(){
+        try {
+          var alerts = JSON.parse(localStorage.getItem('suying_mock_alerts') || '[]');
+          alerts.push({ code: state.code, name: s.name, resistance: s.resistance, support: s.support, ts: Date.now() });
+          localStorage.setItem('suying_mock_alerts', JSON.stringify(alerts));
+        } catch (err) {}
+        if (window.suyingToast) suyingToast(s.name + ' 价格预警已设置', 'ok');
+      }, { title: '设价格预警', okText: '确认设置' });
+    }
+  });
+  document.getElementById('btn-diag').addEventListener('click', function(){
+    var s = STOCKS[state.code];
+    try { localStorage.setItem('suying_mock_diagnosis_code', JSON.stringify({ code: state.code, name: s.name })); } catch (err) {}
+    location.href = '12.0 diagnosis-preview.html';
+  });
+  document.getElementById('btn-trade').addEventListener('click', function(){
+    var s = STOCKS[state.code];
+    try { localStorage.setItem('suying_mock_order_prefill', JSON.stringify({ code: state.code, name: s.name, price: s.current })); } catch (err) {}
+    location.href = '7.1 order-panel-preview.html';
   });
 
   window.toggleFold = function(id){
@@ -558,6 +614,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
   try {
     initSingleChart();
+    /* 支持 ?code= 参数（5.0 总览排行跳转） */
+    var urlCode = new URLSearchParams(location.search).get('code');
+    loadStock(STOCKS[urlCode] ? urlCode : '300750');
   } catch (err) {
     console.error('single-stock chart failed', err);
     showFallback('K线图初始化失败');

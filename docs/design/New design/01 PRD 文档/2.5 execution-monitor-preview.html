@@ -4,51 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 开盘决策 — 执行监控</title>
+<link rel="icon" href="data:," />
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-.grid{display:grid;gap:14px}
-.row{display:grid;gap:14px}
-.r-3-2{grid-template-columns:3fr 2fr}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.card-h h3{font-size:13.5px;font-weight:650}
-.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
-.card-b{padding:16px}
-
 /* Account Bar */
 .acct-bar{display:flex;align-items:center;gap:24px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;font-size:12px;flex-wrap:wrap}
 .acct-bar .sep{width:1px;height:16px;background:var(--border)}
@@ -102,11 +60,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
 .footer-bar .sep{width:1px;height:12px;background:var(--border)}
 
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 6px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
 .refresh-dot{width:7px;height:7px;border-radius:50%;background:var(--down);animation:pulse 1.8s infinite;display:inline-block;margin-right:4px;vertical-align:middle}
-
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
 
 /* Plan Mini Cards */
 .pln-mini{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-bottom:8px}
@@ -135,6 +89,12 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .pln-hist{font-size:10.5px;padding-top:10px;margin-top:4px;border-top:1px solid var(--border);color:var(--muted)}
 .pln-hist a{color:var(--accent);cursor:pointer;text-decoration:none}
 .pln-hist a:hover{text-decoration:underline}
+
+/* Strategy toggle + Order cancel */
+.strat-toggle{font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:var(--elevated);color:var(--fg-2);cursor:pointer;flex-shrink:0;transition:.12s}
+.strat-toggle:hover{background:var(--surface);color:var(--fg)}
+.cancel-order-btn{font-size:9.5px;padding:1px 7px;margin-left:6px;border-radius:4px;border:1px solid var(--up);background:transparent;color:var(--up);cursor:pointer;vertical-align:1px}
+.cancel-order-btn:hover{background:var(--up-bg)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -148,7 +108,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <!-- Account Bar -->
           <div class="acct-bar">
             <span class="acct-label">总资产</span>
-            <span class="acct-val" style="color:var(--fg)">¥1,285,600</span>
+            <span class="acct-val" style="color:var(--fg)">¥1,358,600</span>
             <span class="sep"></span>
             <span class="acct-label">可用</span>
             <span class="acct-val" style="color:var(--accent)">¥342,000</span>
@@ -171,10 +131,11 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
               <div class="card" id="order-list-section">
                 <div class="card-h">
                   <h3>📝 今日订单</h3>
-                  <span class="meta">
+                  <span class="meta" id="orderMeta">
                     <span style="color:var(--fg)">5单</span> · 
                     <span style="color:var(--down)">成交3</span> · 
-                    <span style="color:var(--warn)">待成交2</span>
+                    <span style="color:var(--warn)">待成交2</span> · 
+                    <span style="color:var(--up)">已撤1</span>
                   </span>
                 </div>
                 <div class="ot-header">
@@ -212,7 +173,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ot-dir" style="color:var(--up)">买入</span>
                     <span class="ot-price">68.20</span>
                     <span class="ot-qty">800股</span>
-                    <span class="ot-status" style="color:var(--warn)">待成交 ⏳</span>
+                    <span class="ot-status" style="color:var(--warn)">待成交 ⏳<button class="cancel-order-btn" onclick="cancelOrder(this)">撤单</button></span>
                   </div>
                   <div class="ot-row">
                     <span class="ot-time">09:36</span>
@@ -221,7 +182,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ot-dir" style="color:var(--up)">买入</span>
                     <span class="ot-price">1785.00</span>
                     <span class="ot-qty">100股</span>
-                    <span class="ot-status" style="color:var(--warn)">待成交 ⏳</span>
+                    <span class="ot-status" style="color:var(--warn)">待成交 ⏳<button class="cancel-order-btn" onclick="cancelOrder(this)">撤单</button></span>
                   </div>
                   <div class="ot-row" style="opacity:.55">
                     <span class="ot-time">09:30</span>
@@ -311,7 +272,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
               <!-- Strategy Card -->
               <div class="card">
-                <div class="card-h"><h3>🤖 自动交易策略</h3><span class="meta">3运行 · 1暂停</span></div>
+                <div class="card-h"><h3>🤖 自动交易策略</h3><span class="meta" id="stratMeta">3运行 · 1暂停</span></div>
                 <div class="card-b" style="padding:10px 16px">
       
                   <div class="strat-item">
@@ -320,6 +281,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="strat-state active">活跃</span>
                     <span class="strat-pnl" style="color:var(--up)">日盈亏 +1.22%</span>
                     <span class="strat-hold">持仓2只</span>
+                    <button class="strat-toggle" onclick="toggleStrategy(this)">暂停</button>
                   </div>
       
                   <div class="strat-item">
@@ -328,6 +290,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="strat-state active">活跃</span>
                     <span class="strat-pnl" style="color:var(--down)">日盈亏 -0.31%</span>
                     <span class="strat-hold">持仓3只</span>
+                    <button class="strat-toggle" onclick="toggleStrategy(this)">暂停</button>
                   </div>
       
                   <div class="strat-item">
@@ -336,14 +299,16 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="strat-state active">活跃</span>
                     <span class="strat-pnl" style="color:var(--up)">日盈亏 +0.58%</span>
                     <span class="strat-hold">持仓1只</span>
+                    <button class="strat-toggle" onclick="toggleStrategy(this)">暂停</button>
                   </div>
       
                   <div class="strat-item" style="opacity:.7">
                     <div class="strat-dot paused"></div>
                     <span class="strat-name">竞价超预期 V4.3</span>
                     <span class="strat-state paused">已暂停</span>
-                    <span class="strat-pnl" style="color:var(--up)">日亏 -3.2%</span>
+                    <span class="strat-pnl" style="color:var(--down)">日亏 -3.2%</span>
                     <span class="strat-hold" style="color:var(--up)">触发熔断</span>
+                    <button class="strat-toggle" onclick="toggleStrategy(this)">启动</button>
                   </div>
       
                 </div>
@@ -353,7 +318,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
               <div class="card">
                 <div class="card-h">
                   <h3>📐 今日方案</h3>
-                  <span class="meta">共 <span style="color:var(--fg)">3</span> 个方案 · <span style="color:var(--down)">2</span> 自动 · <span style="color:var(--accent)">1</span> 手动</span>
+                  <span class="meta" id="planMeta">共 <span style="color:var(--fg)">3</span> 个方案 · <span style="color:var(--down)">2</span> 自动 · <span style="color:var(--accent)">1</span> 手动</span>
                 </div>
                 <div class="card-b" style="padding:10px 14px">
       
@@ -390,7 +355,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   </div>
       
                   <!-- Plan 3: Manual -->
-                  <div class="pln-mini">
+                  <div class="pln-mini" id="manualPlanCard">
                     <div class="pln-top">
                       <span style="color:var(--accent);flex-shrink:0;font-size:13px">📄</span>
                       <span class="pln-name">竞价分析-手动方案</span>
@@ -414,7 +379,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   </div>
       
                   <div class="pln-hist">
-                    历史方案: 昨日 <span style="color:var(--fg)">2</span> 个 <a onclick="alert('跳转到方案历史页')">查看全部方案历史 →</a>
+                    历史方案: 昨日 <span style="color:var(--fg)">2</span> 个 <a onclick="window.location.href='9.1 plan-list-preview.html'">查看全部方案历史 →</a>
                   </div>
       
                 </div>
@@ -438,12 +403,12 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <div class="alert-item">
                     <span class="alert-icon" style="color:var(--warn)">⏸️</span>
                     <span class="alert-text">
-                      <span style="font-weight:600">竞价超预期 V4.3</span> 已被暂停 · 日亏损<span class="mono" style="color:var(--up)">-3.2%</span>触发熔断阈值
+                      <span style="font-weight:600">竞价超预期 V4.3</span> 已被暂停 · 日亏损<span class="mono" style="color:var(--down)">-3.2%</span>触发熔断阈值
                     </span>
                   </div>
       
                   <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)">
-                    负责人: 张三 · <span style="color:var(--accent);cursor:pointer">通知风控经理 →</span>
+                    负责人: 张三 · <span style="color:var(--accent);cursor:pointer" onclick="suyingToast('已通过站内信 + 飞书通知风控经理（张三）','ok')">通知风控经理 →</span>
                   </div>
       
                 </div>
@@ -479,18 +444,107 @@ function viewOrders(){
   if(el) el.scrollIntoView({behavior:'smooth'});
 }
 
+// ===== 策略启停 =====
+function toggleStrategy(btn){
+  var item = btn.closest('.strat-item');
+  var dot = item.querySelector('.strat-dot');
+  var name = item.querySelector('.strat-name').textContent;
+  var isActive = dot.classList.contains('active');
+  if(!isActive){
+    suyingConfirm('确认重启策略「' + name + '」？该策略此前因熔断/手动操作被暂停，重启后恢复自动下单。', function(){
+      applyStrategyState(item, true);
+      suyingToast('策略「' + name + '」已恢复运行', 'ok');
+    }, {title:'重启策略', okText:'确认重启'});
+    return;
+  }
+  applyStrategyState(item, false);
+  suyingToast('策略「' + name + '」已暂停，停止新开仓', 'warn');
+}
+
+function applyStrategyState(item, active){
+  var dot = item.querySelector('.strat-dot');
+  var state = item.querySelector('.strat-state');
+  var btn = item.querySelector('.strat-toggle');
+  dot.classList.toggle('active', active);
+  dot.classList.toggle('paused', !active);
+  state.classList.toggle('active', active);
+  state.classList.toggle('paused', !active);
+  state.textContent = active ? '活跃' : '已暂停';
+  item.style.opacity = active ? '' : '.7';
+  if(btn) btn.textContent = active ? '暂停' : '启动';
+  updateStrategyMeta();
+}
+
+function updateStrategyMeta(){
+  var active = document.querySelectorAll('.strat-dot.active').length;
+  var paused = document.querySelectorAll('.strat-dot.paused').length;
+  var el = document.getElementById('stratMeta');
+  if(el) el.textContent = active + '运行 · ' + paused + '暂停';
+}
+
+// ===== 撤单 =====
+function cancelOrder(btn){
+  var row = btn.closest('.ot-row');
+  var code = row.querySelector('.ot-code').textContent;
+  var name = row.querySelector('.ot-name').textContent;
+  suyingConfirm('确认撤销 ' + code + ' ' + name + ' 的待成交订单？', function(){
+    var st = row.querySelector('.ot-status');
+    st.style.color = 'var(--up)';
+    st.textContent = '已撤单 ❌';
+    row.style.opacity = '.55';
+    updateOrderMeta();
+    suyingToast(code + ' ' + name + ' 订单已撤销', 'ok');
+  }, {title:'撤单确认', okText:'确认撤单', danger:true});
+}
+
+function updateOrderMeta(){
+  var rows = document.querySelectorAll('.ot-row');
+  var filled = 0, pending = 0, cancelled = 0;
+  rows.forEach(function(r){
+    var t = r.querySelector('.ot-status').textContent;
+    if(t.indexOf('已成交') >= 0) filled++;
+    else if(t.indexOf('待成交') >= 0) pending++;
+    else if(t.indexOf('已撤单') >= 0) cancelled++;
+  });
+  var el = document.getElementById('orderMeta');
+  if(el) el.innerHTML = '<span style="color:var(--fg)">' + rows.length + '单</span> · '
+    + '<span style="color:var(--down)">成交' + filled + '</span> · '
+    + '<span style="color:var(--warn)">待成交' + pending + '</span>'
+    + (cancelled ? ' · <span style="color:var(--up)">已撤' + cancelled + '</span>' : '');
+}
+
+// ===== 手动方案操作 =====
 function startManualPlan(){
-  alert('策略已启动！执行器正在下单...');
+  suyingConfirm('确认启动方案「竞价分析-手动方案」的自动交易？执行器将开始下单。', function(){
+    var card = document.getElementById('manualPlanCard');
+    if(card){
+      var icon = card.querySelector('.pln-top').children[0];
+      icon.outerHTML = '<span class="pln-dot active"></span>';
+      var state = card.querySelector('.pln-state');
+      state.classList.remove('manual');
+      state.classList.add('active');
+      state.textContent = '自动执行中';
+      var act = card.querySelector('.pln-act');
+      if(act) act.outerHTML = '<div class="pln-sub">订单: <span style="color:var(--warn)">0/3</span> 待成交 · <a onclick="viewOrders()">查看订单 →</a></div>';
+      var meta = document.getElementById('planMeta');
+      if(meta) meta.innerHTML = '共 <span style="color:var(--fg)">3</span> 个方案 · <span style="color:var(--down)">3</span> 自动 · <span style="color:var(--accent)">0</span> 手动';
+    }
+    suyingToast('策略已启动！执行器正在下单','ok');
+  }, {title:'启动自动交易', okText:'确认启动'});
 }
 
 function goToTradeCenter(){
-  alert('跳转到交易中心手动下单');
+  window.location.href = '7.1 order-panel-preview.html';
 }
 
 function deleteManualPlan(){
-  if(confirm('确认删除方案"竞价分析-手动方案"？')){
-    alert('方案已删除');
-  }
+  suyingConfirm('确认删除方案「竞价分析-手动方案」？该操作不可撤销。', function(){
+    var card = document.getElementById('manualPlanCard');
+    if(card) card.remove();
+    var meta = document.getElementById('planMeta');
+    if(meta) meta.innerHTML = '共 <span style="color:var(--fg)">2</span> 个方案 · <span style="color:var(--down)">2</span> 自动 · <span style="color:var(--accent)">0</span> 手动';
+    suyingToast('方案已删除','ok');
+  }, {title:'删除方案', okText:'删除', danger:true});
 }
 </script>
 <script src="assets/preview-interactions.js"></script>

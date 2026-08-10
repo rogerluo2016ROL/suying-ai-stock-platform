@@ -4,50 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 交易中心 — 订单管理</title>
+<link rel="icon" href="data:," />
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
-.top-bar .page-title{font-size:21px;font-weight:700}
-.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
-.top-bar .stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
-.top-bar .stats .sep{width:1px;height:12px;background:var(--border);margin:0 8px;display:inline-block;vertical-align:middle}
-
 /* SubTabBar */
 .stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
 .stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
@@ -116,13 +75,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .modal-box .actions .btn-confirm:hover{background:#2d7ae0}
 .modal-box .actions .btn-cancel2{border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2)}
 .modal-box .actions .btn-cancel2:hover{background:var(--elevated);color:var(--fg)}
-
-.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
-.toast.show{opacity:1;transform:translateY(0)}
-.toast.success{background:var(--down-bg);border-color:var(--down);color:var(--down)}
-
-.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
-.footer-bar .sep{width:1px;height:12px;background:var(--border)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -191,8 +143,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <span class="or-amt">54,560</span>
                 <span class="or-status"><span class="status-tag pending">待成交 ⏳</span></span>
                 <span class="or-actions">
-                  <button class="btn-sm btn-edit" onclick="openModify('688981','中芯国际','buy','68.20','8','56,560')">✏️ 改单</button>
-                  <button class="btn-sm btn-cancel" onclick="cancelOrder('003','688981')">✖️ 撤单</button>
+                  <button class="btn-sm btn-edit" onclick="openModify(this,'688981','中芯国际','buy','68.20','8','54,560')">✏️ 改单</button>
+                  <button class="btn-sm btn-cancel" onclick="cancelOrder('003','688981', this)">✖️ 撤单</button>
                 </span>
               </div>
               <div class="ord-row" data-status="pending">
@@ -202,8 +154,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <span class="or-amt">178,500</span>
                 <span class="or-status"><span class="status-tag pending">待成交 ⏳</span></span>
                 <span class="or-actions">
-                  <button class="btn-sm btn-edit" onclick="openModify('600519','贵州茅台','buy','1785','1','178,500')">✏️ 改单</button>
-                  <button class="btn-sm btn-cancel" onclick="cancelOrder('004','600519')">✖️ 撤单</button>
+                  <button class="btn-sm btn-edit" onclick="openModify(this,'600519','贵州茅台','buy','1785','1','178,500')">✏️ 改单</button>
+                  <button class="btn-sm btn-cancel" onclick="cancelOrder('004','600519', this)">✖️ 撤单</button>
                 </span>
               </div>
               <div class="ord-row" data-status="filled">
@@ -215,7 +167,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <span class="or-actions"><span style="color:var(--muted);font-size:10px">—</span></span>
               </div>
             </div>
-      
+            <div class="empty" id="ordEmpty" style="display:none">当前筛选条件下暂无订单</div>
+
             <!-- Bulk Cancel -->
             <div class="bulk-row">
               <button class="btn-bulk" onclick="cancelAll()">❌ 全部撤单</button>
@@ -233,31 +186,75 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<!-- 改单弹窗（价格/数量输入 + 确认取消） -->
+<div class="modal-overlay" id="modifyModal">
+  <div class="modal-box">
+    <h3>✏️ 修改订单 <span id="modOrderId" class="mono"></span></h3>
+    <div class="stock-ref" id="modStockRef"></div>
+    <div class="cur-ref" id="modCurRef"></div>
+    <div class="field">
+      <label>新委托价 (¥)</label>
+      <input id="modPrice" type="number" step="0.01" oninput="updateModPreview()"/>
+    </div>
+    <div class="field">
+      <label>新数量 (手)</label>
+      <input id="modQty" type="number" min="1" oninput="updateModPreview()"/>
+    </div>
+    <div class="preview" id="modPreview">修改后金额: —</div>
+    <div class="actions">
+      <button class="btn-cancel2" onclick="closeModify()">取消</button>
+      <button class="btn-confirm" onclick="confirmModify()">确认修改</button>
+    </div>
+  </div>
+</div>
 <script src="assets/shell.js"></script>
 <script>
 var currentModifyOrder = null;
+var currentModifyRow = null;
+var currentFilter = 'all';
 
 function showToast(msg, type){
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + (type||'');
-  clearTimeout(t._tid);
-  t._tid = setTimeout(function(){ t.className = 'toast'; }, 2000);
+  if(window.suyingToast) window.suyingToast(msg, type);
 }
 
 function setFilter(filter, el){
+  currentFilter = filter;
   document.querySelectorAll('.filter-pill').forEach(function(p){ p.classList.remove('active'); });
   el.classList.add('active');
-  document.querySelectorAll('.ord-row').forEach(function(row){
-    if(filter === 'all'){ row.style.display = 'flex'; }
-    else if(filter === 'pending'){ row.style.display = row.dataset.status === 'pending' ? 'flex' : 'none'; }
-    else if(filter === 'filled'){ row.style.display = row.dataset.status === 'filled' ? 'flex' : 'none'; }
-    else if(filter === 'cancelled'){ row.style.display = row.dataset.status === 'cancelled' ? 'flex' : 'none'; }
-  });
+  applyFilter();
 }
 
-function openModify(code, name, side, price, qty, amount){
+function applyFilter(){
+  var visible = 0;
+  document.querySelectorAll('.ord-row').forEach(function(row){
+    var show = (currentFilter === 'all') || (row.dataset.status === currentFilter);
+    row.style.display = show ? 'flex' : 'none';
+    if(show) visible++;
+  });
+  document.getElementById('ordEmpty').style.display = visible ? 'none' : 'block';
+}
+
+// 同步顶部统计与筛选徽标计数
+function updateCounts(){
+  var rows = document.querySelectorAll('.ord-row');
+  var cnt = {filled:0, pending:0, cancelled:0};
+  rows.forEach(function(r){ cnt[r.dataset.status] = (cnt[r.dataset.status]||0) + 1; });
+  var total = rows.length;
+  var stats = document.querySelectorAll('.order-stats b');
+  stats[0].textContent = total;
+  stats[1].textContent = cnt.filled;
+  stats[2].textContent = cnt.pending;
+  stats[3].textContent = cnt.cancelled;
+  var pills = document.querySelectorAll('.filter-pill .badge');
+  pills[0].textContent = total;
+  pills[1].textContent = cnt.pending;
+  pills[2].textContent = cnt.filled;
+  pills[3].textContent = cnt.cancelled;
+}
+
+function openModify(btn, code, name, side, price, qty, amount){
   currentModifyOrder = { code: code, name: name, side: side, price: price, qty: qty, amount: amount };
+  currentModifyRow = btn ? btn.closest('.ord-row') : null;
   document.getElementById('modOrderId').textContent = code;
   document.getElementById('modStockRef').textContent = code + ' ' + name + ' · 方向: ' + (side==='buy'?'买入':'卖出');
   document.getElementById('modCurRef').textContent = '当前: 限价 ¥' + price + ' · ' + qty + ' 手 · 金额 ¥' + amount;
@@ -270,6 +267,7 @@ function openModify(code, name, side, price, qty, amount){
 function closeModify(){
   document.getElementById('modifyModal').classList.remove('show');
   currentModifyOrder = null;
+  currentModifyRow = null;
 }
 
 function updateModPreview(){
@@ -285,37 +283,60 @@ function updateModPreview(){
 
 function confirmModify(){
   if(!currentModifyOrder) return;
-  var newPrice = document.getElementById('modPrice').value;
-  var newQty = document.getElementById('modQty').value;
-  if(!newPrice || !newQty){ showToast('请填写完整的价格和数量', ''); return; }
-  showToast('✅ 订单 ' + currentModifyOrder.code + ' 已修改 · 新价 ¥' + newPrice + ' · ' + newQty + '手', 'success');
+  var newPriceRaw = document.getElementById('modPrice').value;
+  var newQtyRaw = document.getElementById('modQty').value;
+  var newPrice = parseFloat(newPriceRaw);
+  var newQty = parseInt(newQtyRaw);
+  if(newPriceRaw === '' || isNaN(newPrice) || newPrice <= 0){ showToast('⚠️ 请输入有效的新委托价 (大于 0)', 'warn'); return; }
+  if(newQtyRaw === '' || isNaN(newQty) || newQty < 1){ showToast('⚠️ 请输入有效的新数量 (至少 1 手)', 'warn'); return; }
+
+  // 真实更新表格行
+  if(currentModifyRow){
+    var newAmt = newPrice * newQty * 100;
+    currentModifyRow.querySelector('.or-price').textContent = newPrice.toLocaleString();
+    currentModifyRow.querySelector('.or-qty').textContent = newQty + '手';
+    currentModifyRow.querySelector('.or-amt').textContent = Math.round(newAmt).toLocaleString();
+  }
+  showToast('✅ 订单 ' + currentModifyOrder.code + ' 已修改 · 新价 ¥' + newPrice + ' · ' + newQty + '手', 'ok');
   closeModify();
 }
 
-function cancelOrder(id, code){
-  if(confirm('确认撤销订单 ' + code + '？')){
-    var row = event.target.closest('.ord-row');
+function cancelOrder(id, code, btn){
+  var row = btn ? btn.closest('.ord-row') : null;
+  suyingConfirm('确认撤销订单 ' + code + '？', function(){
     if(row){
       row.dataset.status = 'cancelled';
       row.querySelector('.or-status').innerHTML = '<span class="status-tag cancelled">已撤单 ❌</span>';
       row.querySelector('.or-actions').innerHTML = '<span style="color:var(--muted);font-size:10px">—</span>';
     }
-    showToast('✅ 订单 ' + code + ' 已撤销');
-  }
+    updateCounts();
+    applyFilter();
+    showToast('✅ 订单 ' + code + ' 已撤销', 'ok');
+  }, {title:'撤单确认', okText:'确认撤单', danger:true});
 }
 
 function cancelAll(){
   var pendingCount = document.querySelectorAll('.ord-row[data-status="pending"]').length;
-  if(pendingCount === 0){ showToast('没有待成交的订单可撤销', ''); return; }
-  if(confirm('确认撤销全部 ' + pendingCount + ' 笔待成交订单？')){
+  if(pendingCount === 0){ showToast('没有待成交的订单可撤销', 'info'); return; }
+  suyingConfirm('确认撤销全部 ' + pendingCount + ' 笔待成交订单？', function(){
     document.querySelectorAll('.ord-row[data-status="pending"]').forEach(function(row){
       row.dataset.status = 'cancelled';
       row.querySelector('.or-status').innerHTML = '<span class="status-tag cancelled">已撤单 ❌</span>';
       row.querySelector('.or-actions').innerHTML = '<span style="color:var(--muted);font-size:10px">—</span>';
     });
-    showToast('✅ 已撤销 ' + pendingCount + ' 笔订单');
-  }
+    updateCounts();
+    applyFilter();
+    showToast('✅ 已撤销 ' + pendingCount + ' 笔订单', 'ok');
+  }, {title:'全部撤单', okText:'全部撤销', danger:true});
 }
+
+// 改单弹窗：遮罩点击 / Escape 关闭
+document.getElementById('modifyModal').addEventListener('click', function(e){
+  if(e.target === this) closeModify();
+});
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape' && document.getElementById('modifyModal').classList.contains('show')) closeModify();
+});
 </script>
 <script src="assets/preview-interactions.js"></script>
 </body>

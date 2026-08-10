@@ -4,50 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 交易中心 — 券商管理</title>
+<link rel="icon" href="data:," />
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap}
-.top-bar .page-title{font-size:21px;font-weight:700}
-.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
-.top-bar .stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
-.top-bar .stats .sep{width:1px;height:12px;background:var(--border);margin:0 8px;display:inline-block;vertical-align:middle}
-
 /* SubTabBar */
 .stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:16px}
 .stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
@@ -113,22 +72,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .log-table .log-status.success{color:var(--down)}
 .log-table .log-action.connect{color:var(--accent)}
 .log-table .log-action.disconnect,.log-table .log-action.auto_disconnect{color:var(--muted)}
-
-/* Modal Overlay */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:none;align-items:center;justify-content:center}
-.modal-overlay.show{display:flex}
-.modal-box{background:var(--surface);border:1px solid var(--border-2);border-radius:10px;padding:24px 28px;width:400px;box-shadow:0 8px 40px rgba(0,0,0,.5)}
-.modal-box h3{font-size:16px;font-weight:700;margin-bottom:8px;color:var(--fg)}
-.modal-box p{font-size:12.5px;color:var(--fg-2);margin-bottom:20px;line-height:1.6}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end}
-.modal-actions button{padding:8px 20px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--font-sans);transition:.12s}
-.modal-actions .btn-cancel{border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2)}
-.modal-actions .btn-cancel:hover{background:var(--elevated);color:var(--fg)}
-.modal-actions .btn-confirm{border:none;background:var(--up);color:#fff}
-.modal-actions .btn-confirm:hover{opacity:.85}
-
-.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
-.footer-bar .sep{width:1px;height:12px;background:var(--border)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -172,7 +115,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
               </div>
               <div class="action-bar">
                 <button onclick="refreshStatus()">🔄 刷新状态</button>
-                <button class="danger" onclick="showDisconnectModal()">🔌 断开连接</button>
+                <button class="danger" id="btnConn" onclick="showDisconnectModal()">🔌 断开连接</button>
               </div>
             </div>
           </div>
@@ -218,7 +161,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
           <!-- Connection History -->
           <div class="log-card" id="connection-history">
-            <div class="card-h">📋 连接历史<a class="view-all" href="#connection-history">查看全部 →</a></div>
+            <div class="card-h">📋 连接历史<a class="view-all" id="viewAllLog" onclick="loadAllHistory()">查看全部 →</a></div>
             <div class="card-b">
               <table class="log-table">
                 <thead>
@@ -262,24 +205,62 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <script src="assets/shell.js"></script>
 <script>
 var currentMode = 'paper';
+var isConnected = true;
+var historyExpanded = false;
+
+// 更早的连接历史（点击查看全部时展开）
+var MORE_HISTORY = [
+  ['09:30 06-26', 'connect', '连接', '✅ 成功', 'Xtquant QMT'],
+  ['15:30 06-25', 'auto_disconnect', '自动断开', '—', '收盘自动'],
+  ['09:30 06-25', 'connect', '连接', '✅ 成功', 'Xtquant QMT'],
+  ['22:10 06-24', 'disconnect', '断开', '—', '手动断开'],
+  ['09:30 06-24', 'connect', '连接', '✅ 成功', 'Xtquant QMT']
+];
+
+function loadAllHistory(){
+  if(historyExpanded){
+    if(window.suyingToast) suyingToast('已显示全部连接历史', 'info');
+    return;
+  }
+  historyExpanded = true;
+  var tbody = document.getElementById('logBody');
+  MORE_HISTORY.forEach(function(h){
+    var row = document.createElement('tr');
+    row.innerHTML = '<td>' + h[0] + '</td>'
+      + '<td class="log-action ' + h[1] + '">' + h[2] + '</td>'
+      + '<td' + (h[3].indexOf('✅') === 0 ? ' class="log-status success"' : '') + '>' + h[3] + '</td>'
+      + '<td>' + h[4] + '</td>';
+    tbody.appendChild(row);
+  });
+  document.getElementById('viewAllLog').textContent = '已显示全部';
+  if(window.suyingToast) suyingToast('✅ 已加载全部 ' + tbody.children.length + ' 条连接历史', 'ok');
+}
 
 function switchMode(mode){
   if(currentMode === mode) return;
-  currentMode = mode;
-  var btnPaper = document.getElementById('btnPaper');
-  var btnLive = document.getElementById('btnLive');
-  btnPaper.classList.toggle('active', mode === 'paper');
-  btnLive.classList.toggle('active', mode === 'live');
-  if(mode === 'live'){
-    btnPaper.textContent = '○ 模拟盘';
-    btnLive.textContent = '● 实盘';
-  } else {
-    btnPaper.textContent = '● 模拟盘';
-    btnLive.textContent = '○ 实盘';
-  }
+  var fromLabel = currentMode === 'paper' ? '模拟盘' : '实盘';
+  var toLabel = mode === 'live' ? '实盘' : '模拟盘';
+  suyingConfirm(
+    '该操作仅 admin 管理员可执行。\n确认从「' + fromLabel + '」切换到「' + toLabel + '」？' + (mode === 'live' ? '\n⚠️ 实盘模式将使用真实资金下单！' : ''),
+    function(){
+      currentMode = mode;
+      var btnPaper = document.getElementById('btnPaper');
+      var btnLive = document.getElementById('btnLive');
+      btnPaper.classList.toggle('active', mode === 'paper');
+      btnLive.classList.toggle('active', mode === 'live');
+      btnPaper.textContent = (mode === 'paper' ? '●' : '○') + ' 模拟盘';
+      btnLive.textContent = (mode === 'live' ? '●' : '○') + ' 实盘';
+      if(window.suyingToast) suyingToast(mode === 'live' ? '⚠️ 已切换到实盘模式 · 真实资金交易' : '✅ 已切换到模拟盘模式', mode === 'live' ? 'warn' : 'ok');
+    },
+    {title:'交易模式切换（仅管理员）', okText:'确认切换', danger: mode === 'live'}
+  );
 }
 
 function refreshStatus(){
+  if(!isConnected){
+    if(window.suyingToast) suyingToast('⚠️ 当前未连接券商 · 请先点击「重新连接」', 'warn');
+    return;
+  }
   var dot = document.getElementById('statusDot');
   var tag = document.getElementById('statusTag');
   var lat = document.getElementById('latencyBadge');
@@ -294,30 +275,43 @@ function refreshStatus(){
     tag.className = 'state-tag connected';
     tag.textContent = '已连接';
     lat.textContent = '延迟 12ms';
+    if(window.suyingToast) suyingToast('✅ 连接状态已刷新 · 延迟 12ms', 'ok');
   }, 1200);
 }
 
 function showDisconnectModal(){
-  document.getElementById('confirmModal').classList.add('show');
+  if(!isConnected){ doReconnect(); return; }
+  suyingConfirm('确认断开与 Xtquant QMT 的连接？\n断开后将停止行情推送与订单回报。', doDisconnect, {title:'断开券商连接', okText:'确认断开', danger:true});
 }
 
-function hideDisconnectModal(){
-  document.getElementById('confirmModal').classList.remove('show');
+function setConnButton(connected){
+  var btn = document.getElementById('btnConn');
+  btn.textContent = connected ? '🔌 断开连接' : '🔗 重新连接';
+  btn.classList.toggle('danger', connected);
 }
 
-function doDisconnect(){
-  hideDisconnectModal();
+function doReconnect(){
   var dot = document.getElementById('statusDot');
   var tag = document.getElementById('statusTag');
-  var lat = document.getElementById('latencyBadge');
 
-  dot.className = 'status-dot disconnected';
-  tag.className = 'state-tag disconnected';
-  tag.textContent = '未连接';
-  lat.textContent = '延迟 —';
-  document.getElementById('accountBadge').textContent = '账户: —';
+  dot.className = 'status-dot connecting';
+  tag.className = 'state-tag connecting';
+  tag.textContent = '连接中…';
 
-  // Add new log entry
+  setTimeout(function(){
+    isConnected = true;
+    dot.className = 'status-dot connected';
+    tag.className = 'state-tag connected';
+    tag.textContent = '已连接';
+    document.getElementById('latencyBadge').textContent = '延迟 15ms';
+    document.getElementById('accountBadge').textContent = '账户: 888****456';
+    setConnButton(true);
+    addLogRow('connect', '连接', '✅ 成功', 'Xtquant QMT');
+    if(window.suyingToast) suyingToast('✅ 已重新连接 Xtquant QMT', 'ok');
+  }, 1200);
+}
+
+function addLogRow(actionCls, actionText, statusText, detail){
   var now = new Date();
   var hh = String(now.getHours()).padStart(2,'0');
   var mm = String(now.getMinutes()).padStart(2,'0');
@@ -328,24 +322,32 @@ function doDisconnect(){
   var tbody = document.getElementById('logBody');
   var row = document.createElement('tr');
   row.innerHTML = '<td>' + timeStr + '</td>'
-    + '<td class="log-action disconnect">断开</td>'
-    + '<td>—</td>'
-    + '<td>手动断开</td>';
+    + '<td class="log-action ' + actionCls + '">' + actionText + '</td>'
+    + '<td' + (statusText.indexOf('✅') === 0 ? ' class="log-status success"' : '') + '>' + statusText + '</td>'
+    + '<td>' + detail + '</td>';
   tbody.insertBefore(row, tbody.firstChild);
 
-  // Keep at most 5 rows
-  while(tbody.children.length > 5) tbody.removeChild(tbody.lastChild);
+  // Keep at most 8 rows
+  while(tbody.children.length > 8) tbody.removeChild(tbody.lastChild);
 }
 
-// Close modal on overlay click
-document.getElementById('confirmModal').addEventListener('click', function(e){
-  if(e.target === this) hideDisconnectModal();
-});
+function doDisconnect(){
+  isConnected = false;
+  var dot = document.getElementById('statusDot');
+  var tag = document.getElementById('statusTag');
+  var lat = document.getElementById('latencyBadge');
 
-// Close modal on Escape
-document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape') hideDisconnectModal();
-});
+  dot.className = 'status-dot disconnected';
+  tag.className = 'state-tag disconnected';
+  tag.textContent = '未连接';
+  lat.textContent = '延迟 —';
+  document.getElementById('accountBadge').textContent = '账户: —';
+  setConnButton(false);
+
+  addLogRow('disconnect', '断开', '—', '手动断开');
+
+  if(window.suyingToast) suyingToast('已断开 Xtquant QMT 连接', 'warn');
+}
 </script>
 <script src="assets/preview-interactions.js"></script>
 </body>

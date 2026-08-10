@@ -4,50 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 交易中心 — 下单面板</title>
+<link rel="icon" href="data:," />
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
-.top-bar .page-title{font-size:21px;font-weight:700}
-.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
-.top-bar .stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
-.top-bar .stats .sep{width:1px;height:12px;background:var(--border);margin:0 8px;display:inline-block;vertical-align:middle}
-
 /* SubTabBar */
 .stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
 .stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
@@ -91,7 +50,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .depth-row .dl{width:28px;color:var(--muted);font-size:9px;flex-shrink:0}
 .depth-row .dp{flex:1;text-align:right;padding-right:8px;font-weight:650}
 .depth-row .dv{width:50px;text-align:right;color:var(--muted);font-size:10px}
-.stock-bar .sb-limits .hi{color:var(--up)} .stock-bar .sb-limits .lo{color:var(--down)}
 
 /* Direction */
 .dir-row{display:flex;gap:8px;margin-bottom:14px}
@@ -143,13 +101,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .btn-confirm:disabled{opacity:.4;cursor:not-allowed}
 .btn-reset{padding:12px 24px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);font-size:14px;cursor:pointer;transition:.12s;font-family:var(--font-sans)}
 .btn-reset:hover{background:var(--elevated);color:var(--fg)}
-
-.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
-.toast.show{opacity:1;transform:translateY(0)}
-.toast.success{background:var(--down-bg);border-color:var(--down);color:var(--down)}
-
-.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
-.footer-bar .sep{width:1px;height:12px;background:var(--border)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -211,7 +162,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
           <div class="quote-bar" id="stockBar" style="display:none">
             <div class="qb-main">
               <span class="qb-name" id="sbName">宁德时代</span>
-              <span class="qb-code mono">300750</span>
+              <span class="qb-code mono" id="sbCode">300750</span>
               <span class="qb-price up" id="sbPrice" style="cursor:pointer;text-decoration:underline" onclick="fillPriceFromQuote()" title="点击填入委托价">218.50</span>
               <span class="qb-chg up" id="sbChg">▲ +8.21%</span>
               <span class="qb-amt up">+16.60</span>
@@ -319,7 +270,18 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <script>
 var direction = 'buy';
 
-// Simulate URL params from plan manager
+// ---- Mock market/account data ----
+var STOCK_MOCK = {
+  '300750': {name:'宁德时代', price:'218.50', chg:'▲ +8.21%', hold:500},
+  '600519': {name:'贵州茅台', price:'1,785', chg:'▲ +1.80%', hold:100},
+  '688981': {name:'中芯国际', price:'68.20', chg:'▼ -0.90%', hold:800},
+  '603986': {name:'兆易创新', price:'152.00', chg:'▲ +2.40%', hold:300},
+  '002594': {name:'比亚迪', price:'268.00', chg:'▼ -0.60%', hold:200}
+};
+var currentHold = 500; // 当前选中标的可卖持仓(股)
+var AVAILABLE_CASH = 420000;
+
+// Simulate URL params from plan manager / position monitor
 (function initUrlParams(){
   var q = {};
   location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, function(_,k,v){ q[k]=decodeURIComponent(v); });
@@ -329,10 +291,33 @@ var direction = 'buy';
     document.getElementById('codeInput').value = q.code||'';
     document.getElementById('priceInput').value = q.price||'218.50';
     onCodeChange(q.code||'300750');
+  } else if(q.code){
+    // 从持仓监控「减仓」等入口跳入：仅带入代码
+    document.getElementById('codeInput').value = q.code;
+    onCodeChange(q.code);
   } else {
     // 默认展示行情条和盘口
     onCodeChange('300750');
   }
+  if(!q.code){
+    // 跨页预填：消费 suying_mock_order_prefill（5.1/6.0/6.1/6.2 信号页写入，读后删除）
+    var prefill = null;
+    try{
+      prefill = JSON.parse(localStorage.getItem('suying_mock_order_prefill') || 'null');
+      localStorage.removeItem('suying_mock_order_prefill');
+    }catch(e){}
+    if(prefill && prefill.code){
+      document.getElementById('codeInput').value = prefill.code;
+      onCodeChange(prefill.code);
+      if(prefill.price){
+        document.getElementById('priceInput').value = prefill.price;
+        recalcAmount();
+      }
+      if(prefill.dir === 'sell') setDirection('sell');
+      showToast('已带入信号标的 ' + prefill.code + (prefill.name ? ' ' + prefill.name : ''), 'info');
+    }
+  }
+  if(q.dir === 'sell') setDirection('sell');
 })();
 
 function clearPlan(){
@@ -343,31 +328,32 @@ function clearPlan(){
 
 function fillPriceFromQuote(){
   var p = document.getElementById('sbPrice').textContent;
-  document.getElementById('priceInput').value = parseFloat(p);
-  showToast('✓ 委托价已填入 ' + p, 'success');
+  document.getElementById('priceInput').value = parseFloat(p.replace(/,/g,''));
+  recalcAmount();
+  showToast('✓ 委托价已填入 ' + p, 'ok');
 }
 
 function fillPrice(p){
   document.getElementById('priceInput').value = p;
-  showToast('✓ 委托价已填入 ' + p, 'success');
+  recalcAmount();
+  showToast('✓ 委托价已填入 ' + p, 'ok');
 }
 
 function showToast(msg, type){
-  var t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + (type||'');
-  clearTimeout(t._tid);
-  t._tid = setTimeout(function(){ t.className = 'toast'; }, 2200);
+  if(window.suyingToast) window.suyingToast(msg, type);
 }
 
 function onCodeChange(val){
   var bar = document.getElementById('stockBar');
   if(!val || val.length < 6){ bar.style.display = 'none'; return; }
+  var m = STOCK_MOCK[val] || STOCK_MOCK['300750'];
+  currentHold = m.hold;
   bar.style.display = 'block';
-  document.getElementById('sbName').textContent = '宁德时代';
-  document.getElementById('sbPrice').textContent = '218.50';
-  document.getElementById('sbChg').innerHTML = '▲ +8.21%';
-  document.getElementById('priceInput').value = '218.50';
+  document.getElementById('sbName').textContent = m.name;
+  document.getElementById('sbCode').textContent = STOCK_MOCK[val] ? val : '300750';
+  document.getElementById('sbPrice').textContent = m.price;
+  document.getElementById('sbChg').innerHTML = m.chg;
+  document.getElementById('priceInput').value = m.price.replace(/,/g,'');
   recalcAmount();
 }
 
@@ -377,6 +363,7 @@ function setDirection(dir){
     b.classList.remove('active','buy','sell');
     if(b.dataset.dir === dir){ b.classList.add('active',dir); }
   });
+  recalcAmount();
 }
 
 function setAlloc(pct){
@@ -390,9 +377,12 @@ function setAlloc(pct){
 }
 
 function recalcAmount(){
-  var price = parseFloat(document.getElementById('priceInput').value) || 218.50;
-  var qty = parseInt(document.getElementById('qtyInput').value) || 4;
-  var amount = price * qty * 100;
+  var priceRaw = document.getElementById('priceInput').value;
+  var qtyRaw = document.getElementById('qtyInput').value;
+  var price = parseFloat(priceRaw);
+  var qty = parseInt(qtyRaw);
+  var valid = !isNaN(price) && price > 0 && !isNaN(qty) && qty >= 1;
+  var amount = valid ? price * qty * 100 : 0;
   var fee = amount * 0.0003;
   var alloc = (amount / 1358600 * 100).toFixed(1);
   document.getElementById('amountVal').textContent = '¥' + amount.toLocaleString();
@@ -402,6 +392,42 @@ function recalcAmount(){
   var overall = document.getElementById('rkOverall');
   var items = checks.querySelectorAll('.risk-item');
   var hasFail = false, hasWarn = amount > 50000;
+
+  // [0] 资金充足（买入）/ 卖出回笼
+  if(direction === 'buy'){
+    if(valid && amount + fee > AVAILABLE_CASH){
+      items[0].className = 'risk-item fail';
+      items[0].querySelector('.ri-icon').textContent = '❌';
+      items[0].querySelector('.ri-msg').textContent = '可用 ¥' + AVAILABLE_CASH.toLocaleString() + ' < 需 ¥' + Math.ceil(amount + fee).toLocaleString() + ' · 超出可买';
+      hasFail = true;
+    } else {
+      items[0].className = 'risk-item pass';
+      items[0].querySelector('.ri-icon').textContent = '✅';
+      items[0].querySelector('.ri-msg').textContent = '可用 ¥' + AVAILABLE_CASH.toLocaleString() + ' > 需 ¥' + Math.ceil(amount + fee).toLocaleString();
+    }
+  } else {
+    items[0].className = 'risk-item pass';
+    items[0].querySelector('.ri-icon').textContent = '✅';
+    items[0].querySelector('.ri-msg').textContent = '卖出回笼资金 ¥' + amount.toLocaleString();
+  }
+
+  // [1] 持仓充足（卖出）/ 买入不占用
+  if(direction === 'sell'){
+    if(valid && qty * 100 > currentHold){
+      items[1].className = 'risk-item fail';
+      items[1].querySelector('.ri-icon').textContent = '❌';
+      items[1].querySelector('.ri-msg').textContent = '可卖 ' + currentHold + ' 股 < 委托 ' + (qty * 100) + ' 股 · 超出持仓';
+      hasFail = true;
+    } else {
+      items[1].className = 'risk-item pass';
+      items[1].querySelector('.ri-icon').textContent = '✅';
+      items[1].querySelector('.ri-msg').textContent = '持有 ' + currentHold + ' 股可卖';
+    }
+  } else {
+    items[1].className = 'risk-item pass';
+    items[1].querySelector('.ri-icon').textContent = '✅';
+    items[1].querySelector('.ri-msg').textContent = '买入不涉及持仓占用';
+  }
 
   if(amount > 200000){
     items[4].className = 'risk-item fail';
@@ -418,7 +444,8 @@ function recalcAmount(){
   items[5].querySelector('.ri-icon').textContent = hasWarn ? '⚠️' : '✅';
   items[5].querySelector('.ri-msg').textContent = hasWarn ? '> ¥50,000 · 需人工确认' : '≤ ¥50,000';
 
-  if(hasFail){ overall.className = 'rk-overall fail'; overall.textContent = '❌ 风控拒绝 — 单笔金额超限'; }
+  if(!valid){ overall.className = 'rk-overall warn'; overall.textContent = '⚠️ 待填写 — 请输入有效的委托价与数量'; }
+  else if(hasFail){ overall.className = 'rk-overall fail'; overall.textContent = '❌ 风控拒绝 — 存在不通过的检查项'; }
   else if(hasWarn){ overall.className = 'rk-overall warn'; overall.textContent = '⚠️ 需人工确认 — 订单金额超过确认线 ¥50,000'; }
   else { overall.className = 'rk-overall pass'; overall.textContent = '✅ 风控通过 — 所有检查项正常'; }
 
@@ -435,24 +462,36 @@ function runPreCheck(){
   });
   var overall = document.getElementById('rkOverall');
   if(overall.classList.contains('pass')){
-    showToast('✅ 风控预检通过 — 6项检查全部正常，可以下单', 'success');
+    showToast('✅ 风控预检通过 — 6项检查全部正常，可以下单', 'ok');
   } else if(overall.classList.contains('fail')){
-    showToast('❌ 风控预检拒绝 — 请调整订单参数', '');
+    showToast('❌ 风控预检拒绝 — 请调整订单参数', 'error');
   } else {
-    showToast('⚠️ 风控预检警告 — 存在需人工确认的项', '');
+    showToast('⚠️ 风控预检警告 — 存在需人工确认的项', 'warn');
   }
 }
 
 function confirmOrder(){
-  var qty = parseInt(document.getElementById('qtyInput').value);
-  if(qty < 1){ showToast('请输入有效数量', ''); return; }
+  var priceRaw = document.getElementById('priceInput').value;
+  var qtyRaw = document.getElementById('qtyInput').value;
+  var price = parseFloat(priceRaw);
+  var qty = parseInt(qtyRaw);
+  if(priceRaw === '' || isNaN(price) || price <= 0){ showToast('⚠️ 请输入有效委托价 (大于 0)', 'warn'); return; }
+  if(qtyRaw === '' || isNaN(qty) || qty < 1){ showToast('⚠️ 请输入有效数量 (至少 1 手)', 'warn'); return; }
 
-  var amount = parseFloat(document.getElementById('amountVal').textContent.replace(/[^0-9.]/g,''));
+  var amount = price * qty * 100;
+  var fee = amount * 0.0003;
+  if(direction === 'buy' && amount + fee > AVAILABLE_CASH){ showToast('❌ 超出可买金额 · 可用 ¥' + AVAILABLE_CASH.toLocaleString(), 'error'); return; }
+  if(direction === 'sell' && qty * 100 > currentHold){ showToast('❌ 超出可卖持仓 · 可卖 ' + currentHold + ' 股', 'error'); return; }
+
   if(amount > 50000){
-    if(!confirm('订单金额 ¥' + amount.toLocaleString() + ' 超过确认线 ¥50,000，确认下单？')) return;
+    suyingConfirm('订单金额 ¥' + amount.toLocaleString() + ' 超过确认线 ¥50,000，确认下单？', submitOrder, {title:'大额下单确认', okText:'确认下单'});
+    return;
   }
+  submitOrder();
+}
 
-  showToast('✅ 订单已提交 · 编号 #ORD-' + String(Math.floor(Math.random()*90000)+10000) + ' · 待成交', 'success');
+function submitOrder(){
+  showToast('✅ 订单已提交 · 编号 #ORD-' + String(Math.floor(Math.random()*90000)+10000) + ' · 待成交', 'ok');
 }
 
 function resetForm(){

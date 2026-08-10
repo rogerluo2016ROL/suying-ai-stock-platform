@@ -4,54 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 量化交易 — 策略日志</title>
+<link rel="icon" href="data:," />
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-.top-bar{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
-.top-bar .page-title{font-size:21px;font-weight:700}
-.top-bar .stats{font-size:12.5px;color:var(--fg-2)}
-.top-bar .stats b{color:var(--fg);font-weight:650;font-family:var(--font-mono)}
-
-.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
-.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
-.stb a:hover{color:var(--fg)}
-.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
-
 .log-wrap{max-width:860px;margin:0 auto}
 .log-top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
 .log-top .sel-label{font-size:12px;color:var(--fg-2)}
@@ -70,6 +25,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .log-pill.active.stop-loss{background:var(--up-bg);border-color:var(--up);color:var(--up)}
 .log-pill.active.take-profit{background:var(--down-bg);border-color:var(--down);color:var(--down)}
 .log-pill.active.pause{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.log-pill.active.info{background:rgba(94,106,125,.15);border-color:var(--muted);color:var(--fg)}
 .log-pill.active.error{background:rgba(255,77,79,.15);border-color:var(--up);color:var(--up)}
 .log-pill .pill-count{font-family:var(--font-mono);font-size:9.5px;opacity:.7}
 
@@ -99,14 +55,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .empty-state .es-text{font-size:14px;font-weight:600;margin-bottom:6px}
 .empty-state .es-hint{font-size:11px}
 
-.toast{position:fixed;top:24px;right:24px;z-index:100;padding:12px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none}
-.toast.show{opacity:1;transform:translateY(0)}
-.toast.success{background:var(--down-bg);border-color:var(--down);color:var(--down)}
-
 @keyframes dotPulse{0%{box-shadow:0 0 0 0 rgba(46,194,126,.5)}70%{box-shadow:0 0 0 5px rgba(46,194,126,0)}100%{box-shadow:0 0 0 0 rgba(46,194,126,0)}}
-
-.footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
-.footer-bar .sep{width:1px;height:12px;background:var(--border)}
 </style>
 <link rel="stylesheet" href="assets/app.css" />
 <link rel="stylesheet" href="assets/preview-adapter.css" />
@@ -133,129 +82,30 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <option value="USR-GRID-V2">USR-GRID-V2 网格交易V2</option>
               </select>
               <span class="status-badge active" id="statusBadge" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;background:var(--down-bg);color:var(--down);border:1px solid rgba(46,194,126,.25)"><span style="width:7px;height:7px;border-radius:50%;background:var(--down);animation:dotPulse 1.8s infinite"></span>运行中</span>
-              <span class="log-count" style="margin-left:auto">共<b>23</b>条记录 · 今日<b>7</b>条</span>
+              <span class="log-count" style="margin-left:auto" id="logCount">共<b>12</b>条记录 · 今日<b>8</b>条</span>
               <button class="export-btn" onclick="exportLogs()">📥 导出日志</button>
             </div>
-      
+
             <div class="log-filters" id="logFilters">
-              <span class="log-pill active all" onclick="filterLogs('all',this)">全部 <span class="pill-count">23</span></span>
-              <span class="log-pill" onclick="filterLogs('order',this)">📝 下单 <span class="pill-count">15</span></span>
-              <span class="log-pill" onclick="filterLogs('stop-loss',this)">🛑 止损 <span class="pill-count">2</span></span>
-              <span class="log-pill" onclick="filterLogs('take-profit',this)">✅ 止盈 <span class="pill-count">3</span></span>
-              <span class="log-pill" onclick="filterLogs('pause',this)">⏸️ 暂停 <span class="pill-count">1</span></span>
-              <span class="log-pill" onclick="filterLogs('error',this)">❌ 错误 <span class="pill-count">1</span></span>
+              <span class="log-pill active all" data-type="all" onclick="filterLogs('all',this)">全部 <span class="pill-count">12</span></span>
+              <span class="log-pill" data-type="order" onclick="filterLogs('order',this)">📝 下单 <span class="pill-count">5</span></span>
+              <span class="log-pill" data-type="stop-loss" onclick="filterLogs('stop-loss',this)">🛑 止损 <span class="pill-count">1</span></span>
+              <span class="log-pill" data-type="take-profit" onclick="filterLogs('take-profit',this)">✅ 止盈 <span class="pill-count">2</span></span>
+              <span class="log-pill" data-type="pause" onclick="filterLogs('pause',this)">⏸️ 暂停 <span class="pill-count">1</span></span>
+              <span class="log-pill" data-type="info" onclick="filterLogs('info',this)">ℹ️ 信息 <span class="pill-count">2</span></span>
+              <span class="log-pill" data-type="error" onclick="filterLogs('error',this)">❌ 错误 <span class="pill-count">1</span></span>
             </div>
-      
+
             <div class="log-table">
               <div class="log-th"><span style="width:44px">时间</span><span style="width:64px">级别</span><span style="flex:1">事件</span><span style="flex:1">详情</span></div>
-      
-              <!-- Log Row: 下单 -->
-              <div class="log-row" data-type="order" onclick="toggleExpand(this)">
-                <span class="lr-time">10:15</span>
-                <span class="log-badge order">📝 下单</span>
-                <span class="lr-event">买入 300750 宁德 500股 @218.50</span>
-                <span class="lr-detail">风控:✅全部通过</span>
+              <div id="logBody"></div>
+              <div class="empty-state" id="logEmpty" style="display:none">
+                <div class="es-icon">📭</div>
+                <div class="es-text">当前筛选下暂无日志</div>
+                <div class="es-hint">切换其他级别或策略查看</div>
               </div>
-              <div class="log-expand-row">信号来源: MA20上穿MA60 · 风控检查: 仓位50%<80%✅ · 单票15%<20%✅ · 日亏损-0.3%<3%✅ · 成交编号: T20260627-001</div>
-      
-              <!-- Log Row: 止盈 -->
-              <div class="log-row" data-type="take-profit" onclick="toggleExpand(this)">
-                <span class="lr-time">09:50</span>
-                <span class="log-badge take-profit">✅ 止盈</span>
-                <span class="lr-event">止盈触发 +15.2% · 600036 招商</span>
-                <span class="lr-detail">浮动盈亏确认 +¥12,450</span>
-              </div>
-              <div class="log-expand-row">持仓成本: ¥36.80 · 卖出价格: ¥42.30 · 持有天数: 12天 · 止盈阈值: 15% · 实际收益: +15.2%</div>
-      
-              <!-- Log Row: 下单 -->
-              <div class="log-row" data-type="order" onclick="toggleExpand(this)">
-                <span class="lr-time">09:45</span>
-                <span class="log-badge order">📝 下单</span>
-                <span class="lr-event">买入 600519 茅台 100股 @1,785</span>
-                <span class="lr-detail">MACD金叉信号 · 风控:✅</span>
-              </div>
-              <div class="log-expand-row">信号来源: MACD金叉 · 风控检查: 全部通过✅ · 成交编号: T20260627-003</div>
-      
-              <!-- Log Row: 止损 -->
-              <div class="log-row" data-type="stop-loss" onclick="toggleExpand(this)">
-                <span class="lr-time">09:38</span>
-                <span class="log-badge stop-loss">🛑 止损</span>
-                <span class="lr-event">止损触发 -8.2% · 002594 比亚迪</span>
-                <span class="lr-detail">浮亏确认 -¥15,600</span>
-              </div>
-              <div class="log-expand-row">持仓成本: ¥310.50 · 卖出价格: ¥285.00 · 持有天数: 5天 · 止损阈值: 8% · 触发原因: 跌破止损线自动卖出</div>
-      
-              <!-- Log Row: 下单 -->
-              <div class="log-row" data-type="order" onclick="toggleExpand(this)">
-                <span class="lr-time">09:33</span>
-                <span class="log-badge order">📝 下单</span>
-                <span class="lr-event">买入 688981 中芯 800股 @68.20</span>
-                <span class="lr-detail">信号触发 · 风控:✅</span>
-              </div>
-              <div class="log-expand-row">信号来源: RSI超卖反弹 · 成交编号: T20260627-005</div>
-      
-              <!-- Log Row: 下单 -->
-              <div class="log-row" data-type="order" onclick="toggleExpand(this)">
-                <span class="lr-time">09:32</span>
-                <span class="log-badge order">📝 下单</span>
-                <span class="lr-event">买入 300750 宁德 500股 @213.80</span>
-                <span class="lr-detail">MA20上穿信号 · 风控:✅全部通过</span>
-              </div>
-              <div class="log-expand-row">信号来源: MA20上穿MA60 · 成交编号: T20260627-006</div>
-      
-              <!-- Log Row: 信息 -->
-              <div class="log-row" data-type="info" onclick="toggleExpand(this)">
-                <span class="lr-time">09:30</span>
-                <span class="log-badge info">ℹ️ 信息</span>
-                <span class="lr-event">策略启动</span>
-                <span class="lr-detail">初始资金 ¥500,000</span>
-              </div>
-              <div class="log-expand-row">加载标的: 300750,600519,688981,603986,000858 · 5只 · 执行器ID: EX-08001 · 启动时间: 2026-06-27 09:30:00</div>
-      
-              <!-- Log Row: 信息 -->
-              <div class="log-row" data-type="info" onclick="toggleExpand(this)">
-                <span class="lr-time">09:30</span>
-                <span class="log-badge info">ℹ️ 信息</span>
-                <span class="lr-event">风控预检通过</span>
-                <span class="lr-detail">资金/持仓/集中度 OK</span>
-              </div>
-              <div class="log-expand-row">可用资金: ¥500,000 · 仓位上限: 80% · 单票上限: 20% · 日亏损上限: 3% · 全部风控参数验证通过</div>
-      
-              <!-- Log Row: 错误 -->
-              <div class="log-row" data-type="error" onclick="toggleExpand(this)">
-                <span class="lr-time">06-26 14:35</span>
-                <span class="log-badge error">❌ 错误</span>
-                <span class="lr-event">下单失败 · 603986 兆易 300股</span>
-                <span class="lr-detail">可用资金不足 · 余额 ¥12,450 · 需要 ¥42,840</span>
-              </div>
-              <div class="log-expand-row">错误码: ERR-2003 · 详情: 可用资金 ¥12,450 < 所需资金 ¥42,840 · 建议: 减少委托数量或补充资金 · 系统自动重试: 否</div>
-      
-              <!-- Log Row: 暂停 -->
-              <div class="log-row" data-type="pause" onclick="toggleExpand(this)">
-                <span class="lr-time">06-25 15:00</span>
-                <span class="log-badge pause">⏸️ 暂停</span>
-                <span class="lr-event">日亏损触发暂停 -5.1%</span>
-                <span class="lr-detail">超过日亏损上限 -3.0%</span>
-              </div>
-              <div class="log-expand-row">当日亏损: -¥25,500 · 亏损比例: -5.1% · 触发规则: 日最大亏损 3% · 操作: 自动暂停策略 · 次日可手动恢复</div>
-      
-              <!-- Log Row: 止盈 -->
-              <div class="log-row" data-type="take-profit" onclick="toggleExpand(this)">
-                <span class="lr-time">06-25 10:20</span>
-                <span class="log-badge take-profit">✅ 止盈</span>
-                <span class="lr-event">止盈触发 +18.5% · 600519 茅台</span>
-                <span class="lr-detail">浮盈确认 +¥18,500</span>
-              </div>
-              <div class="log-expand-row">持仓成本: ¥1,700 · 卖出价格: ¥2,015 · 持有天数: 18天 · 实际收益: +18.5%</div>
-      
-              <!-- Log Row: 下单 -->
-              <div class="log-row" data-type="order" onclick="toggleExpand(this)">
-                <span class="lr-time">06-24 09:35</span>
-                <span class="log-badge order">📝 下单</span>
-                <span class="lr-event">买入 603986 兆易 300股 @138.20</span>
-                <span class="lr-detail">MACD底背离信号 · 风控:✅</span>
-              </div>
-              <div class="log-expand-row">信号来源: MACD底背离 · 成交编号: T20260624-001</div>
+            </div>
+
             </div>
           </div>
       
@@ -272,26 +122,121 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
 <script>
-function showToast(msg,cls){
-  var t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast show'+(cls?' '+cls:'');
-  clearTimeout(t._tid);t._tid=setTimeout(function(){t.className='toast';},2200);
+var TYPE_META = {
+  'order':       {label:'📝 下单'},
+  'stop-loss':   {label:'🛑 止损'},
+  'take-profit': {label:'✅ 止盈'},
+  'pause':       {label:'⏸️ 暂停'},
+  'info':        {label:'ℹ️ 信息'},
+  'error':       {label:'❌ 错误'}
+};
+
+var logsData = {
+  'USR-FS-V1': { label:'我的自定义', status:'running', logs:[
+    {time:'10:15', type:'order', event:'买入 300750 宁德 500股 @218.50', detail:'风控:✅全部通过', expand:'信号来源: MA20上穿MA60 · 风控检查: 仓位50%<80%✅ · 单票15%<20%✅ · 日亏损-0.3%<3%✅ · 成交编号: T20260627-001'},
+    {time:'09:50', type:'take-profit', event:'止盈触发 +15.2% · 600036 招商', detail:'浮动盈亏确认 +¥12,450', expand:'持仓成本: ¥36.80 · 卖出价格: ¥42.30 · 持有天数: 12天 · 止盈阈值: 15% · 实际收益: +15.2%'},
+    {time:'09:45', type:'order', event:'买入 600519 茅台 100股 @1,785', detail:'MACD金叉信号 · 风控:✅', expand:'信号来源: MACD金叉 · 风控检查: 全部通过✅ · 成交编号: T20260627-003'},
+    {time:'09:38', type:'stop-loss', event:'止损触发 -8.2% · 002594 比亚迪', detail:'浮亏确认 -¥15,600', expand:'持仓成本: ¥310.50 · 卖出价格: ¥285.00 · 持有天数: 5天 · 止损阈值: 8% · 触发原因: 跌破止损线自动卖出'},
+    {time:'09:33', type:'order', event:'买入 688981 中芯 800股 @68.20', detail:'信号触发 · 风控:✅', expand:'信号来源: RSI超卖反弹 · 成交编号: T20260627-005'},
+    {time:'09:32', type:'order', event:'买入 300750 宁德 500股 @213.80', detail:'MA20上穿信号 · 风控:✅全部通过', expand:'信号来源: MA20上穿MA60 · 成交编号: T20260627-006'},
+    {time:'09:30', type:'info', event:'策略启动', detail:'初始资金 ¥500,000', expand:'加载标的: 300750,600519,688981,603986,000858 · 5只 · 执行器ID: EX-08001 · 启动时间: 2026-06-27 09:30:00'},
+    {time:'09:30', type:'info', event:'风控预检通过', detail:'资金/持仓/集中度 OK', expand:'可用资金: ¥500,000 · 仓位上限: 80% · 单票上限: 20% · 日亏损上限: 3% · 全部风控参数验证通过'},
+    {time:'06-26 14:35', type:'error', event:'下单失败 · 603986 兆易 300股', detail:'可用资金不足 · 余额 ¥12,450 · 需要 ¥42,840', expand:'错误码: ERR-2003 · 详情: 可用资金 ¥12,450 < 所需资金 ¥42,840 · 建议: 减少委托数量或补充资金 · 系统自动重试: 否'},
+    {time:'06-25 15:00', type:'pause', event:'日亏损触发暂停 -5.1%', detail:'超过日亏损上限 -3.0%', expand:'当日亏损: -¥25,500 · 亏损比例: -5.1% · 触发规则: 日最大亏损 3% · 操作: 自动暂停策略 · 次日可手动恢复'},
+    {time:'06-25 10:20', type:'take-profit', event:'止盈触发 +18.5% · 600519 茅台', detail:'浮盈确认 +¥18,500', expand:'持仓成本: ¥1,700 · 卖出价格: ¥2,015 · 持有天数: 18天 · 实际收益: +18.5%'},
+    {time:'06-24 09:35', type:'order', event:'买入 603986 兆易 300股 @138.20', detail:'MACD底背离信号 · 风控:✅', expand:'信号来源: MACD底背离 · 成交编号: T20260624-001'}
+  ]},
+  'SYS-LT-V1': { label:'龙头战法-强势突破', status:'running', logs:[
+    {time:'10:02', type:'order', event:'买入 601012 隆基 1,000股 @32.80', detail:'龙头突破信号 · 风控:✅', expand:'信号来源: 龙头战法V4.3 · 板块强度排名前3 · 成交编号: T20260627-101'},
+    {time:'09:48', type:'take-profit', event:'止盈触发 +20.0% · 002594 比亚迪', detail:'浮盈确认 +¥26,800', expand:'持仓成本: ¥223.50 · 卖出价格: ¥268.20 · 持有天数: 9天 · 止盈阈值: 20%'},
+    {time:'09:35', type:'order', event:'买入 300750 宁德 400股 @216.90', detail:'竞价强势 · 风控:✅', expand:'信号来源: 竞价意图 · 风控检查: 全部通过✅ · 成交编号: T20260627-103'},
+    {time:'09:31', type:'info', event:'策略启动', detail:'初始资金 ¥700,000', expand:'加载标的: 601012,002594,601899,600036,300274 · 5只 · 执行器ID: EX-08002'},
+    {time:'06-26 13:20', type:'stop-loss', event:'止损触发 -5.0% · 601899 紫金', detail:'浮亏确认 -¥8,400', expand:'持仓成本: ¥18.20 · 卖出价格: ¥17.29 · 止损阈值: 5% · 触发原因: 跌破止损线自动卖出'},
+    {time:'06-26 09:32', type:'order', event:'买入 600036 招商 2,000股 @41.80', detail:'趋势启动 · 风控:✅', expand:'信号来源: 龙头战法V4.3 · 成交编号: T20260626-104'},
+    {time:'06-25 14:10', type:'error', event:'委托被拒 · 300274 阳光电源', detail:'价格超出涨跌停限制', expand:'错误码: ERR-1102 · 详情: 委托价超过当日涨停价 · 系统自动撤单'},
+    {time:'06-24 15:00', type:'info', event:'日终清算完成', detail:'当日盈亏 +¥9,320', expand:'成交 4 笔 · 胜率 75% · 净值 1.186'}
+  ]},
+  'USR-GRID-V2': { label:'网格交易V2', status:'paused', logs:[
+    {time:'06-26 14:55', type:'pause', event:'手动暂停', detail:'用户主动暂停网格', expand:'操作人: admin · 暂停原因: 手动暂停 · 持仓保留: 8只网格标的 · 可手动恢复'},
+    {time:'06-26 14:30', type:'order', event:'网格卖出 510300 沪深300ETF 1,000股 @4.12', detail:'网格 +0.8% 触发', expand:'网格层: 第3层 · 买入价 ¥4.09 · 卖出价 ¥4.12 · 本格收益 +¥30'},
+    {time:'06-26 11:20', type:'order', event:'网格买入 510050 上证50ETF 2,000股 @2.68', detail:'网格 -0.8% 触发', expand:'网格层: 第5层 · 成交编号: T20260626-201'},
+    {time:'06-25 15:00', type:'info', event:'日终清算完成', detail:'当日网格成交 6 笔', expand:'买入 3 笔 / 卖出 3 笔 · 网格套利收益 +¥182'},
+    {time:'06-25 10:40', type:'order', event:'网格卖出 511880 银华日利 500股 @100.02', detail:'网格 +0.02% 触发', expand:'货币网格层: 第2层 · 本格收益 +¥10'},
+    {time:'06-24 09:31', type:'info', event:'策略启动', detail:'初始资金 ¥150,000', expand:'加载标的: 510050,510300,511880,600036,601318,600519,159915,513100 · 8只 · 执行器ID: EX-08003'}
+  ]}
+};
+
+var currentLogFilter = 'all';
+
+/* 跟单/部署副本（8.1/8.2 写入 localStorage）合并进策略列表 */
+function loadFollows(){
+  var follows = [];
+  try{ follows = JSON.parse(localStorage.getItem('suying_mock_follows')||'[]'); }catch(e){}
+  var sel = document.getElementById('strategySelect');
+  follows.forEach(function(f){
+    if(logsData[f.code]) return;
+    logsData[f.code] = { label:(f.name || '跟单副本'), status:'running', logs:[
+      {time:'09:30', type:'info', event:'策略部署完成', detail:'跟单金额 ¥'+(f.amount?Math.round(f.amount).toLocaleString():'100,000'), expand:'副本编码: '+f.code+' · 来源: 策略广场一键跟单 · 执行器已就绪'}
+    ]};
+    var opt = document.createElement('option');
+    opt.value = f.code;
+    opt.textContent = f.code + ' ' + (f.name || '跟单副本');
+    sel.appendChild(opt);
+  });
+}
+
+function renderLogs(id){
+  var d = logsData[id];
+  var body = document.getElementById('logBody');
+  var html = '';
+  d.logs.forEach(function(l){
+    html += '<div class="log-row" data-type="'+l.type+'" onclick="toggleExpand(this)">'+
+      '<span class="lr-time">'+l.time+'</span>'+
+      '<span class="log-badge '+l.type+'">'+TYPE_META[l.type].label+'</span>'+
+      '<span class="lr-event">'+l.event+'</span>'+
+      '<span class="lr-detail">'+l.detail+'</span>'+
+    '</div>'+
+    '<div class="log-expand-row">'+l.expand+'</div>';
+  });
+  body.innerHTML = html;
+
+  /* 计数：pill + 顶部统计（HH:MM 格式视为今日） */
+  var counts = {all:d.logs.length};
+  var today = 0;
+  d.logs.forEach(function(l){
+    counts[l.type] = (counts[l.type]||0) + 1;
+    if(/^\d{2}:\d{2}$/.test(l.time)) today++;
+  });
+  document.querySelectorAll('.log-pill').forEach(function(p){
+    var t = p.dataset.type;
+    var c = p.querySelector('.pill-count');
+    if(c) c.textContent = counts[t] || 0;
+  });
+  document.getElementById('logCount').innerHTML = '共<b>'+d.logs.length+'</b>条记录 · 今日<b>'+today+'</b>条';
+
+  applyLogFilter();
+}
+
+function applyLogFilter(){
+  var type = currentLogFilter;
+  var visible = 0;
+  document.querySelectorAll('#logBody .log-row').forEach(function(r){
+    var show = type==='all' || r.dataset.type===type;
+    r.style.display = show ? '' : 'none';
+    if(!show) r.classList.remove('expanded');
+    var next = r.nextElementSibling;
+    if(next && next.classList.contains('log-expand-row')){
+      next.style.display = r.style.display;
+    }
+    if(show) visible++;
+  });
+  document.getElementById('logEmpty').style.display = visible ? 'none' : '';
 }
 
 function switchStrategy(id){
-  var labels = {
-    'USR-FS-V1': '我的自定义',
-    'SYS-LT-V1': '龙头战法-强势突破',
-    'USR-GRID-V2': '网格交易V2'
-  };
-  var statuses = {
-    'USR-FS-V1': 'running',
-    'SYS-LT-V1': 'running',
-    'USR-GRID-V2': 'paused'
-  };
+  var d = logsData[id];
   var badge = document.getElementById('statusBadge');
-  var s = statuses[id];
-  if(s === 'running'){
+  if(d.status === 'running'){
     badge.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:var(--down);animation:dotPulse 1.8s infinite"></span>运行中';
     badge.style.background = 'var(--down-bg)';
     badge.style.color = 'var(--down)';
@@ -302,26 +247,17 @@ function switchStrategy(id){
     badge.style.color = 'var(--warn)';
     badge.style.border = '1px solid rgba(245,166,35,.25)';
   }
-  showToast('📜 已加载策略 '+id+' '+labels[id]+' 的日志','success');
+  renderLogs(id);
+  suyingToast('📜 已加载策略 '+id+' '+d.label+' 的日志','success');
 }
 
 function filterLogs(type,btn){
   document.querySelectorAll('.log-pill').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.log-pill').forEach(function(p){ p.classList.remove('all','order','stop-loss','take-profit','pause','info','error'); });
   btn.classList.add('active');
-  if(type==='all')btn.classList.add('all');
-  else btn.classList.add(type);
-
-  document.querySelectorAll('.log-row,.log-expand-row').forEach(function(r){
-    if(r.classList.contains('log-expand-row'))return;
-    var rowType=r.dataset.type;
-    if(type==='all'){r.style.display='';}
-    else{r.style.display=rowType===type?'':'none';}
-    // hide expand row too
-    var next=r.nextElementSibling;
-    if(next&&next.classList.contains('log-expand-row')){
-      next.style.display=r.style.display;
-    }
-  });
+  btn.classList.add(type);
+  currentLogFilter = type;
+  applyLogFilter();
 }
 
 function toggleExpand(row){
@@ -329,8 +265,10 @@ function toggleExpand(row){
 }
 
 function exportLogs(){
-  var rows=document.querySelectorAll('.log-row');
+  var id = document.getElementById('strategySelect').value;
+  var rows=document.querySelectorAll('#logBody .log-row');
   var csv='时间,级别,事件,详情\n';
+  var n = 0;
   rows.forEach(function(r){
     if(r.style.display==='none')return;
     var time=r.querySelector('.lr-time').textContent;
@@ -338,16 +276,42 @@ function exportLogs(){
     var event=r.querySelector('.lr-event').textContent;
     var detail=r.querySelector('.lr-detail').textContent;
     csv+='"'+time+'","'+badge+'","'+event+'","'+detail+'"\n';
+    n++;
   });
+  if(n === 0){
+    suyingToast('⚠️ 当前筛选下没有可导出的日志','warn');
+    return;
+  }
   var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
   a.href=url;
-  a.download='策略日志_龙头战法_2026-06-27.csv';
+  a.download='策略日志_'+id+'_2026-06-27.csv';
   a.click();
   URL.revokeObjectURL(url);
-  showToast('📥 日志已导出 · 23条记录','success');
+  suyingToast('📥 日志已导出 · '+n+'条记录','success');
 }
+
+/* ---- Init ---- */
+loadFollows();
+(function(){
+  var latest = null;
+  try{ latest = localStorage.getItem('suying_mock_follow_latest'); }catch(e){}
+  if(latest && logsData[latest]){
+    document.getElementById('strategySelect').value = latest;
+    localStorage.removeItem('suying_mock_follow_latest');
+  }
+  var id = document.getElementById('strategySelect').value;
+  var d = logsData[id];
+  var badge = document.getElementById('statusBadge');
+  if(d.status !== 'running'){
+    badge.innerHTML = '<span style="width:7px;height:7px;border-radius:50%;background:var(--warn)"></span><span style="color:var(--warn)">已暂停</span>';
+    badge.style.background = 'var(--warn-bg)';
+    badge.style.color = 'var(--warn)';
+    badge.style.border = '1px solid rgba(245,166,35,.25)';
+  }
+  renderLogs(id);
+})();
 </script>
 <script src="assets/preview-interactions.js"></script>
 </body>

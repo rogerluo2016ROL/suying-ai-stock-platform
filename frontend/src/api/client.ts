@@ -26,6 +26,9 @@ export type {
   TrainingHistoryResponse,
   TrainingScheduleResponse,
   TrainingModelActionResponse,
+  TrainingRunParams,
+  TrainingRunRequest,
+  TrainingRunResponse,
 } from './domains/training/types'
 
 // ── Supply Chain 域(类型 + build 辅助,C 域拆分)──

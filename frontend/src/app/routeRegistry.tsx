@@ -54,8 +54,15 @@ export function findRoute(pathname: string) {
 
 export function buildMenuItems(role: Role | null, permissions: PermissionKey[] = []) {
   const permissionSet = new Set(permissions)
-  return routeRegistry.filter(route => route.navVisible && !!role && route.roles.includes(role)
-    && (permissionSet.size === 0 || permissionSet.has(route.permission)))
+  const hasBackendPermissions = permissionSet.size > 0
+  return routeRegistry.filter(route => {
+    if (!route.navVisible || !role || !route.roles.includes(role)) return false
+    // Fail-closed:与 ProtectedRoute 一致的双层逻辑
+    // - permissions 已加载 → 检查 permission
+    // - permissions 未加载 → 仅检查 role（放行，由 ProtectedRoute 兜底）
+    if (hasBackendPermissions && !permissionSet.has(route.permission)) return false
+    return true
+  })
     .map(route => ({ key: route.path, label: route.label, group: route.group, roles: route.roles,
       permission: route.permission, iconKey: route.iconKey, badge: route.badge }))
 }

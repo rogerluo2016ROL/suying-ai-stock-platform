@@ -3,7 +3,6 @@ import { MemoryRouter } from 'react-router-dom'
 import P0Workflow from '../pages/P0Workflow'
 import RiskControl from '../pages/RiskControl'
 import { backtestApi, chainApi, signalApi, strategyApi, tradeApi } from '../api/client'
-import { liveTradeApi } from '../api/liveTrade'
 
 vi.mock('../api/client', () => ({
   backtestApi: {
@@ -17,18 +16,18 @@ vi.mock('../api/client', () => ({
   },
   strategyApi: {
     getPlans: vi.fn(),
+    listInstances: vi.fn(),
+    pauseInstance: vi.fn(),
+    resumeInstance: vi.fn(),
   },
   tradeApi: {
     getOrders: vi.fn(),
     getRiskVerdicts: vi.fn(),
     getDecisionContexts: vi.fn(),
-  },
-}))
-
-vi.mock('../api/liveTrade', () => ({
-  liveTradeApi: {
     getAuditLogs: vi.fn(),
     getRiskConfig: vi.fn(),
+    getCircuitBreakerStatus: vi.fn(),
+    getPositions: vi.fn(),
   },
 }))
 
@@ -110,11 +109,27 @@ describe('Phase 4 workflow pages', () => {
         page_size: 20,
       },
     } as any)
-    vi.mocked(liveTradeApi.getAuditLogs).mockResolvedValue({
+    vi.mocked(tradeApi.getAuditLogs).mockResolvedValue({
       data: { records: [{ id: 1, action_type: 'risk_check' }], total: 1, page: 1, page_size: 20 },
     } as any)
-    vi.mocked(liveTradeApi.getRiskConfig).mockResolvedValue({
+    vi.mocked(tradeApi.getRiskConfig).mockResolvedValue({
       data: { max_position_pct: 0.2, max_single_amount: 100000, price_limit_pct: 0.1, large_order_threshold: 50000 },
+    } as any)
+    vi.mocked(tradeApi.getCircuitBreakerStatus).mockResolvedValue({
+      data: { breakers: [{ account_id: 'default', status: 'NORMAL', daily_loss_pct: 0, threshold_pct: 5, daily_pnl: 0, can_trade: true }] },
+    } as any)
+    vi.mocked(tradeApi.getPositions).mockResolvedValue({
+      data: {
+        positions: [{ code: '002138', name: '顺络电子', volume: 1000, avg_cost: 40, current_price: 42.8, market_value: 42800, pnl: 2800, pnl_pct: 0.07, stop_loss: 41.5 }],
+        total_market_value: 42800,
+        total_pnl: 2800,
+      },
+    } as any)
+    vi.mocked(strategyApi.listInstances).mockResolvedValue({
+      data: {
+        strategies: [{ id: 'STR-live-001', name: '动量执行器', status: 'active', risk_rules: { daily_max_loss_pct: 0.03, stop_loss_pct: 0.03 } }],
+        total: 1,
+      },
     } as any)
   })
 
@@ -160,7 +175,18 @@ describe('Phase 4 workflow pages', () => {
     expect(screen.getAllByText('CTX-live-001').length).toBeGreaterThan(0)
     await waitFor(() => expect(tradeApi.getRiskVerdicts).toHaveBeenCalled())
     expect(tradeApi.getDecisionContexts).toHaveBeenCalled()
-    expect(liveTradeApi.getAuditLogs).toHaveBeenCalled()
-    expect(liveTradeApi.getRiskConfig).toHaveBeenCalled()
+    expect(tradeApi.getAuditLogs).toHaveBeenCalled()
+    expect(tradeApi.getRiskConfig).toHaveBeenCalled()
+  })
+
+  it('loads breaker, positions, strategy and sentiment evidence for the risk dashboard', async () => {
+    renderPage(<RiskControl />, '/risk')
+
+    await waitFor(() => expect(tradeApi.getCircuitBreakerStatus).toHaveBeenCalled())
+    expect(tradeApi.getPositions).toHaveBeenCalled()
+    expect(strategyApi.listInstances).toHaveBeenCalled()
+    expect(signalApi.getLive).toHaveBeenCalled()
+    expect(await screen.findByText('四层防御状态')).toBeInTheDocument()
+    expect(screen.getByText('运行策略 1 个')).toBeInTheDocument()
   })
 })

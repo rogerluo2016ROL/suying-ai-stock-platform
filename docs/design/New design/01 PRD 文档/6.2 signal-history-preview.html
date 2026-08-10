@@ -3,44 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 交易信号 — 信号历史</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-/* Layout */
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+/* Layout overrides（本页为整屏 flex 布局，覆盖 app.css 壳样式） */
 .main{flex:1;margin-left:var(--sidebar-w);min-width:0;display:flex;flex-direction:column;height:100vh}
-.header{height:var(--header-h);flex-shrink:0;position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
 .content{flex:1;display:flex;flex-direction:column;padding:16px 20px 0;overflow:hidden}
 
 /* QuickSelectBar */
@@ -68,11 +36,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .sr{flex:40;min-width:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
 .sl::-webkit-scrollbar,.sr::-webkit-scrollbar{width:4px}
 .sl::-webkit-scrollbar-thumb,.sr::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:2px}
-
-/* Card */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.card-h{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;font-weight:650}
-.card-b{padding:14px}
 
 /* History Chart */
 #history-chart{width:100%;height:360px}
@@ -105,27 +68,27 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <div class="qsb">
                   <span class="qsb-label">候选池:</span>
                   <div class="qsb-chips">
-                    <span class="qsc active"><span class="n">宁德时代</span><span class="c">300750</span></span>
-                    <span class="qsc" onclick="switchStock('中芯国际','688981')"><span class="n">中芯国际</span><span class="c">688981</span></span>
-                    <span class="qsc" onclick="switchStock('北方华创','002371')"><span class="n">北方华创</span><span class="c">002371</span></span>
+                    <span class="qsc active" onclick="switchStock('宁德时代','300750',this)"><span class="n">宁德时代</span><span class="c">300750</span></span>
+                    <span class="qsc" onclick="switchStock('中芯国际','688981',this)"><span class="n">中芯国际</span><span class="c">688981</span></span>
+                    <span class="qsc" onclick="switchStock('北方华创','002371',this)"><span class="n">北方华创</span><span class="c">002371</span></span>
                   </div>
                   <span class="qsb-label" style="margin-left:8px">自选:</span>
                   <div class="qsb-chips">
-                    <span class="qsc" onclick="switchStock('贵州茅台','600519')"><span class="n">贵州茅台</span><span class="c">600519</span></span>
-                    <span class="qsc" onclick="switchStock('平安银行','000001')"><span class="n">平安银行</span><span class="c">000001</span></span>
+                    <span class="qsc" onclick="switchStock('贵州茅台','600519',this)"><span class="n">贵州茅台</span><span class="c">600519</span></span>
+                    <span class="qsc" onclick="switchStock('平安银行','000001',this)"><span class="n">平安银行</span><span class="c">000001</span></span>
                   </div>
                   <span class="qsb-label" style="margin-left:8px">最近:</span>
                   <div class="qsb-chips">
-                    <span class="qsc" onclick="switchStock('比亚迪','002594')"><span class="n">比亚迪</span><span class="c">002594</span></span>
+                    <span class="qsc" onclick="switchStock('比亚迪','002594',this)"><span class="n">比亚迪</span><span class="c">002594</span></span>
                   </div>
-                  <input type="text" placeholder="搜索代码/名称..." style="margin-left:auto">
+                  <input type="text" id="qsb-search" placeholder="搜索代码/名称..." style="margin-left:auto">
                 </div>
 <!-- History Content -->
                 <div class="sm" style="flex:1">
                   <!-- Left: Chart -->
                   <div class="sl">
                     <div class="card" style="flex:1;display:flex;flex-direction:column">
-                      <div class="card-h">📈 30 日信号评分趋势 <span style="margin-left:auto;font-size:11px;color:var(--muted)">300750 宁德时代</span></div>
+                      <div class="card-h">📈 30 日信号评分趋势 <span style="margin-left:auto;font-size:11px;color:var(--muted)" id="hist-stock">300750 宁德时代</span></div>
                       <div class="card-b" style="flex:1;display:flex;flex-direction:column">
                         <div id="history-chart"></div>
                         <div style="margin-top:8px;font-size:10px;color:var(--muted);text-align:center">
@@ -143,14 +106,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                         <div class="hit">
                           <div class="hc">
                             <div class="hl" style="color:var(--up)">🟢 STRONG_BUY</div>
-                            <div class="hm">出现 <b>15</b> 次<br>方向正确率 <b class="up">80%</b><br>平均收益 <b class="up">+5.2%</b></div>
+                            <div class="hm">出现 <b id="sb-count">15</b> 次<br>方向正确率 <b class="up">80%</b><br>平均收益 <b class="up">+5.2%</b></div>
                           </div>
                           <div class="hc">
                             <div class="hl" style="color:var(--warn)">🟡 BUY</div>
-                            <div class="hm">出现 <b>8</b> 次<br>方向正确率 <b class="warn">68%</b><br>平均收益 <b class="warn">+2.1%</b></div>
+                            <div class="hm">出现 <b id="b-count">8</b> 次<br>方向正确率 <b class="warn">68%</b><br>平均收益 <b class="warn">+2.1%</b></div>
                           </div>
                         </div>
-                        <div class="hs">
+                        <div class="hs" id="hs-line">
                           近30天 STRONG_BUY 信号出现 <b style="color:var(--fg)">3</b> 次, 其中 <b style="color:var(--up)">2</b> 次兑现
                         </div>
                       </div>
@@ -161,19 +124,19 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <div class="card-b">
                         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
                           <span style="font-size:11px;color:var(--fg-2)">近30日均分</span>
-                          <span class="mono" style="font-size:14px;font-weight:650;color:var(--accent)">71.2</span>
+                          <span class="mono" style="font-size:14px;font-weight:650;color:var(--accent)" id="stat-avg">71.2</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
                           <span style="font-size:11px;color:var(--fg-2)">最高分</span>
-                          <span class="mono" style="font-size:14px;font-weight:650;color:var(--up)">88</span>
+                          <span class="mono" style="font-size:14px;font-weight:650;color:var(--up)" id="stat-max">88</span>
                         </div>
                         <div style="display:flex;justify-content:space-between;margin-bottom:8px">
                           <span style="font-size:11px;color:var(--fg-2)">最低分</span>
-                          <span class="mono" style="font-size:14px;font-weight:650;color:var(--down)">48</span>
+                          <span class="mono" style="font-size:14px;font-weight:650;color:var(--down)" id="stat-min">48</span>
                         </div>
                         <div style="display:flex;justify-content:space-between">
                           <span style="font-size:11px;color:var(--fg-2)">标准差</span>
-                          <span class="mono" style="font-size:14px;font-weight:650">11.3</span>
+                          <span class="mono" style="font-size:14px;font-weight:650" id="stat-std">11.3</span>
                         </div>
                       </div>
                     </div>
@@ -193,52 +156,55 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
 <script>
-function switchStock(name, code) {
-  document.querySelectorAll('.qsc').forEach(function(el){ el.classList.remove('active') })
-  if (event && event.target.closest('.qsc')) event.target.closest('.qsc').classList.add('active')
+// ── Mock：各标的 30 日评分序列参数（与 6.0/6.1 口径一致） ──
+var STOCKS = {
+  '300750': { name:'宁德时代', seed:11, base:66, trend:0.7 },
+  '688981': { name:'中芯国际', seed:23, base:62, trend:0.4 },
+  '002371': { name:'北方华创', seed:37, base:60, trend:0.3 },
+  '600519': { name:'贵州茅台', seed:41, base:64, trend:0.2 },
+  '000001': { name:'平安银行', seed:53, base:50, trend:0.1 },
+  '002594': { name:'比亚迪',   seed:67, base:56, trend:-0.1 },
+}
+var currentCode = '300750'
+
+var dates = []
+for (var i = 0; i < 30; i++) {
+  var d = new Date(2026, 4, 29 + i)
+  dates.push((d.getMonth()+1) + '/' + d.getDate())
 }
 
-function action(type) {
-  var map = { pool:'已加入候选池', trade:'跳转交易中心...', diagnosis:'跳转个股诊断...', alert:'已设置价格预警' }
-  showToast(map[type] || type)
-}
+function makeRnd(seed){ var s = seed; return function(){ s = (s*16807) % 2147483647; return (s-1)/2147483646 } }
 
-function showToast(msg) {
-  var t = document.getElementById('toast')
-  if (!t) {
-    t = document.createElement('div')
-    t.id = 'toast'
-    t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:100;padding:10px 20px;background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);border-radius:8px;font-size:13px;font-weight:600;opacity:0;transform:translateY(-10px);transition:all .3s;pointer-events:none'
-    document.body.appendChild(t)
-  }
-  t.textContent = msg
-  t.style.opacity = '1'
-  t.style.transform = 'translateY(0)'
-  setTimeout(function(){ t.style.opacity = '0'; t.style.transform = 'translateY(-10px)' }, 1500)
-}
-
-// ── History Chart ──
-(function initHistory(){
-  var dom = document.getElementById('history-chart')
-  var chart = echarts.init(dom, 'dark')
-
-  var dates = []
+function genScores(code){
+  var st = STOCKS[code]
+  var rnd = makeRnd(st.seed)
+  var scores = []
   for (var i = 0; i < 30; i++) {
-    var d = new Date(2026, 4, 29 + i)
-    dates.push((d.getMonth()+1) + '/' + d.getDate())
+    var v = st.base + st.trend * i + (rnd() * 22 - 11)
+    scores.push(Math.max(28, Math.min(95, Math.round(v))))
   }
+  return scores
+}
 
-  var scores = [52,48,55,58,62,60,65,70,68,72,75,71,68,73,78,80,82,79,76,81,85,83,80,78,82,86,88,85,83,85]
-  var ratings = []
-  var colors = []
-  for (var j = 0; j < scores.length; j++) {
-    var s = scores[j]
+var scores = genScores(currentCode)
+
+function ratingsOf(list){
+  var ratings = [], colors = []
+  for (var j = 0; j < list.length; j++) {
+    var s = list[j]
     if (s >= 80) { ratings.push('SB'); colors.push('#ff4d4f') }
     else if (s >= 60) { ratings.push('B'); colors.push('#f5a623') }
     else if (s >= 40) { ratings.push('H'); colors.push('#3d8bff') }
     else { ratings.push('S'); colors.push('#5e6a7d') }
   }
+  return { ratings: ratings, colors: colors }
+}
 
+// ── History Chart ──
+var chart = echarts.init(document.getElementById('history-chart'), (window.suyingEchartsTheme?suyingEchartsTheme():'dark'))
+
+function renderChart(){
+  var rc = ratingsOf(scores)
   chart.setOption({
     backgroundColor:'transparent',
     tooltip:{
@@ -249,7 +215,7 @@ function showToast(msg) {
       formatter:function(params){
         var p = params[0]
         var idx = p.dataIndex
-        var r = ratings[idx]
+        var r = rc.ratings[idx]
         var rl = r === 'SB' ? 'STRONG_BUY' : r === 'B' ? 'BUY' : r === 'H' ? 'HOLD' : 'SELL'
         return dates[idx] + '<br/>评分: <b>' + p.value + '</b> · 评级: <b>' + rl + '</b>'
       }
@@ -279,7 +245,7 @@ function showToast(msg) {
         }
       },
       symbol:'circle', symbolSize:4,
-      itemStyle:{ color:function(p){ return colors[p.dataIndex] } },
+      itemStyle:{ color:function(p){ return rc.colors[p.dataIndex] } },
       markLine:{
         silent:true, symbol:'none',
         data:[
@@ -294,9 +260,100 @@ function showToast(msg) {
       { type:'slider', height:18, bottom:2, borderColor:'#1f2733', backgroundColor:'#11161f', fillerColor:'rgba(61,139,255,0.1)', textStyle:{ fontSize:9, color:'#5e6a7d' } }
     ]
   })
+}
 
-  window.addEventListener('resize',function(){ chart.resize() })
+/* 右栏统计随标的重算 */
+function renderStats(){
+  var n = scores.length
+  var sum = scores.reduce(function(a,b){ return a+b }, 0)
+  var avg = sum / n
+  var max = Math.max.apply(null, scores)
+  var min = Math.min.apply(null, scores)
+  var variance = scores.reduce(function(a,b){ return a + (b-avg)*(b-avg) }, 0) / n
+  var rc = ratingsOf(scores)
+  var sbCount = rc.ratings.filter(function(r){ return r==='SB' }).length
+  var bCount = rc.ratings.filter(function(r){ return r==='B' }).length
+  document.getElementById('stat-avg').textContent = avg.toFixed(1)
+  document.getElementById('stat-max').textContent = max
+  document.getElementById('stat-min').textContent = min
+  document.getElementById('stat-std').textContent = Math.sqrt(variance).toFixed(1)
+  document.getElementById('sb-count').textContent = sbCount
+  document.getElementById('b-count').textContent = bCount
+  var recentSb = rc.ratings.slice(-10).filter(function(r){ return r==='SB' }).length
+  document.getElementById('hs-line').innerHTML =
+    '近30天 STRONG_BUY 信号出现 <b style="color:var(--fg)">' + sbCount + '</b> 次, 其中 <b style="color:var(--up)">' + Math.max(0, sbCount-1) + '</b> 次兑现'
+}
+
+function switchStock(name, code, el) {
+  document.querySelectorAll('.qsc').forEach(function(c){ c.classList.remove('active') })
+  if (el) el.classList.add('active')
+  currentCode = code
+  scores = genScores(code)
+  document.getElementById('hist-stock').textContent = code + ' ' + name
+  renderChart()
+  renderStats()
+}
+
+// ── Action bar ──
+function action(type) {
+  var s = STOCKS[currentCode] || STOCKS['300750']
+  if (type === 'pool') {
+    try {
+      // 统一 schema: [{code, name, src, date, ...}]，兼容历史字符串元素
+      var pool = JSON.parse(localStorage.getItem('suying_mock_candidate_pool') || '[]')
+      pool = pool.map(function(e){ return typeof e === 'string' ? { code: e, name: '', src: '', date: '' } : e }).filter(function(e){ return e && e.code })
+      if (pool.some(function(p){ return p.code === currentCode })) {
+        if (window.suyingToast) suyingToast(s.name + ' 已在候选池中', 'info')
+        return
+      }
+      pool.push({ code: currentCode, name: s.name, src: 'signal', date: new Date().toISOString().slice(0,10), ts: Date.now() })
+      localStorage.setItem('suying_mock_candidate_pool', JSON.stringify(pool))
+    } catch (err) {}
+    if (window.suyingToast) suyingToast(s.name + ' ' + currentCode + ' 已加入候选池', 'ok')
+  } else if (type === 'trade') {
+    try { localStorage.setItem('suying_mock_order_prefill', JSON.stringify({ code: currentCode, name: s.name })) } catch (err) {}
+    location.href = '7.1 order-panel-preview.html'
+  } else if (type === 'diagnosis') {
+    try { localStorage.setItem('suying_mock_diagnosis_code', JSON.stringify({ code: currentCode, name: s.name })) } catch (err) {}
+    location.href = '12.0 diagnosis-preview.html'
+  } else if (type === 'alert') {
+    if (!window.suyingConfirm) return
+    suyingConfirm('为 ' + s.name + ' (' + currentCode + ') 设置价格预警：信号评分突破 80 / 跌破 60 时提醒？', function(){
+      try {
+        var alerts = JSON.parse(localStorage.getItem('suying_mock_alerts') || '[]')
+        alerts.push({ code: currentCode, name: s.name, type: '评分预警', ts: Date.now() })
+        localStorage.setItem('suying_mock_alerts', JSON.stringify(alerts))
+      } catch (err) {}
+      if (window.suyingToast) suyingToast(s.name + ' 价格预警已设置', 'ok')
+    }, { title: '设价格预警', okText: '确认设置' })
+  }
+}
+
+// ── 搜索框：回车按代码/名称匹配并切换 ──
+(function initSearch(){
+  var input = document.getElementById('qsb-search')
+  if (!input) return
+  input.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter') return
+    var q = input.value.trim()
+    if (!q) return
+    var hit = Object.keys(STOCKS).find(function(code){
+      return code === q || STOCKS[code].name === q || STOCKS[code].name.indexOf(q) >= 0 || code.indexOf(q) === 0
+    })
+    if (hit) {
+      switchStock(STOCKS[hit].name, hit, null)
+      input.value = ''
+      input.blur()
+      if (window.suyingToast) suyingToast('已切换到 ' + STOCKS[hit].name + ' ' + hit, 'ok')
+    } else if (window.suyingToast) {
+      suyingToast('未找到标的「' + q + '」，请检查代码/名称', 'warn')
+    }
+  })
 })()
+
+renderChart()
+renderStats()
+window.addEventListener('resize',function(){ chart.resize() })
 </script>
 <script src="assets/preview-interactions.js"></script>
 </body>

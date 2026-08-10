@@ -17,7 +17,7 @@ import { useTheme } from './contexts/ThemeContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import ErrorBoundary from './components/ErrorBoundary'
 import { alertApi, clearPlatformContext, injectPlatformContext, marketApi } from './api/client'
-import { liveTradeApi } from './api/liveTrade'
+import { tradeApi } from './api/domains/trade/api'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
 import { buildPlatformSessionFromUser } from './types/platform'
@@ -280,7 +280,7 @@ export default function App() {
         return
       }
 
-      liveTradeApi.getBrokerStatus()
+      tradeApi.getBrokerStatus()
         .then(r => {
           if (cancelled) return
           const data = r.data || {}

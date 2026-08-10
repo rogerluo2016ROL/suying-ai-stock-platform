@@ -4,51 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 开盘决策 — 候选池</title>
+<link rel="icon" href="data:," />
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-.grid{display:grid;gap:14px}
-.row{display:grid;gap:14px}
-.r-7-3{grid-template-columns:7fr 3fr}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.card-h h3{font-size:13.5px;font-weight:650}
-.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
-.card-b{padding:16px}
-
 /* Summary Bar */
 .summary-bar{display:flex;align-items:center;gap:14px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:14px;font-size:12px}
 .summary-bar .label{font-weight:680;color:var(--accent)}
@@ -79,6 +37,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .ct-kronos{font-family:var(--font-mono);font-size:11.5px;font-weight:650;width:60px;flex-shrink:0;text-align:center}
 .ct-score{font-family:var(--font-mono);font-size:13px;font-weight:720;width:52px;flex-shrink:0;text-align:right}
 .ct-risk{width:86px;flex-shrink:0;font-size:11px}
+.src-badge{font-size:9px;padding:1px 4px;border-radius:8px;border:1px solid var(--accent);color:var(--accent);white-space:nowrap}
 
 /* Action Bar */
 .action-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;margin-top:10px;background:var(--surface-2);border-radius:6px;border:1px solid var(--border)}
@@ -102,8 +61,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 
 .footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
 .footer-bar .sep{width:1px;height:12px;background:var(--border)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
 
 /* Plan Preview */
 .pp-hdr{display:flex;align-items:center;gap:6px;padding:7px 12px;font-size:10px;color:var(--muted);font-weight:600;border-bottom:2px solid var(--border)}
@@ -178,11 +135,11 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
               <div>
                 <!-- Filter -->
                 <div class="filter-bar">
-                  <button class="filter-btn active">全部 ▼</button>
-                  <button class="filter-btn" style="color:var(--up)">★★★ 高共识</button>
-                  <button class="filter-btn" style="color:var(--warn)">★★</button>
-                  <button class="filter-btn" style="color:var(--down)">自选共振</button>
-                  <button class="filter-btn">仅可用</button>
+                  <button class="filter-btn active" onclick="setPoolFilter('all', this)">全部 ▼</button>
+                  <button class="filter-btn" style="color:var(--up)" onclick="setPoolFilter('star3', this)">★★★ 高共识</button>
+                  <button class="filter-btn" style="color:var(--warn)" onclick="setPoolFilter('star2', this)">★★</button>
+                  <button class="filter-btn" style="color:var(--down)" onclick="setPoolFilter('wl', this)">自选共振</button>
+                  <button class="filter-btn" onclick="setPoolFilter('avail', this)">仅可用</button>
                 </div>
       
                 <!-- Table -->
@@ -200,7 +157,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ct-risk">风控</span>
                   </div>
       
-                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="true">
+                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="true" data-stars="3" data-wl="1">
                     <span class="ct-cb" style="color:var(--accent)">☑</span>
                     <span class="ct-code" style="color:var(--accent)">300750</span>
                     <span class="ct-name">宁德</span>
@@ -213,7 +170,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ct-risk" style="color:var(--down)">✅ 正常</span>
                   </div>
       
-                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="true">
+                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="true" data-stars="3" data-wl="1">
                     <span class="ct-cb" style="color:var(--accent)">☑</span>
                     <span class="ct-code" style="color:var(--accent)">688981</span>
                     <span class="ct-name">中芯</span>
@@ -226,7 +183,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ct-risk" style="color:var(--down)">✅ 正常</span>
                   </div>
       
-                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="true">
+                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="true" data-stars="2" data-wl="1" id="row000858">
                     <span class="ct-cb" style="color:var(--accent)">☑</span>
                     <span class="ct-code" style="color:var(--accent)">000858</span>
                     <span class="ct-name">五粮</span>
@@ -236,10 +193,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ct-source" style="color:var(--muted)">—</span>
                     <span class="ct-kronos" style="color:var(--muted)">→ -2%</span>
                     <span class="ct-score" style="color:var(--warn)">70.0</span>
-                    <span class="ct-risk" style="color:var(--warn)">⚠️ 距止损0.7%</span>
+                    <span class="ct-risk" style="color:var(--warn)" id="risk000858">⚠️ 距止损0.7%</span>
                   </div>
       
-                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false">
+                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false" data-stars="2" data-wl="1">
                     <span class="ct-cb" style="color:var(--muted)">☐</span>
                     <span class="ct-code">600519</span>
                     <span class="ct-name">茅台</span>
@@ -252,7 +209,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ct-risk" style="color:var(--down)">✅ 正常</span>
                   </div>
       
-                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false">
+                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false" data-stars="1">
                     <span class="ct-cb" style="color:var(--muted)">☐</span>
                     <span class="ct-code">601012</span>
                     <span class="ct-name">隆基</span>
@@ -265,7 +222,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ct-risk" style="color:var(--down)">✅ 正常</span>
                   </div>
       
-                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false">
+                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false" data-stars="2">
                     <span class="ct-cb" style="color:var(--muted)">☐</span>
                     <span class="ct-code">002594</span>
                     <span class="ct-name">比亚迪</span>
@@ -278,7 +235,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="ct-risk" style="color:var(--down)">✅ 正常</span>
                   </div>
       
-                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false">
+                  <div class="ct-row" onclick="toggleSelect(this)" data-selected="false" data-stars="1">
                     <span class="ct-cb" style="color:var(--muted)">☐</span>
                     <span class="ct-code">603259</span>
                     <span class="ct-name">药明</span>
@@ -347,15 +304,15 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="risk-icon" style="color:var(--warn)">⚠️</span>
                     <div class="risk-body">
                       <div class="risk-title" style="color:var(--warn)">止损检查</div>
-                      <div class="risk-detail">1只距止损 &lt;3% · 000858 距止损仅<span class="mono" style="color:var(--warn)">0.7%</span></div>
+                      <div class="risk-detail" id="stopLossDetail">1只距止损 &lt;3% · 000858 距止损仅<span class="mono" style="color:var(--warn)">0.7%</span></div>
                     </div>
                   </div>
       
                   <div class="risk-actions">
-                    <button class="action-btn" style="color:var(--up);border-color:var(--up);flex:1">🛡️ 一键排除所有风险</button>
+                    <button class="action-btn" style="color:var(--up);border-color:var(--up);flex:1" onclick="excludeAllRisk()">🛡️ 一键排除所有风险</button>
                   </div>
                   <div class="risk-actions" style="margin-top:6px">
-                    <button class="action-btn warn-outline" style="flex:1">↩ 手动恢复: 000858 ▸</button>
+                    <button class="action-btn warn-outline" style="flex:1" onclick="restoreStock('000858')">↩ 手动恢复: 000858 ▸</button>
                   </div>
                 </div>
               </div>
@@ -374,6 +331,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span style="width:50px;flex-shrink:0;text-align:right">止损</span>
                     <span style="width:50px;flex-shrink:0;text-align:right">止盈</span>
                   </div>
+                  <div id="ppRows">
       
                   <div class="pp-row">
                     <span style="width:66px;flex-shrink:0"><span class="mono" style="color:var(--accent);font-size:11px">300750</span><span style="font-size:10px;color:var(--fg-2);margin-left:2px">宁德</span></span>
@@ -411,10 +369,12 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <span class="mono" style="width:50px;flex-shrink:0;text-align:right;font-size:10.5px;color:var(--up)">174.80</span>
                   </div>
       
+                  </div><!-- /ppRows -->
+      
                   <div class="pp-summary">
-                    <span>总仓位: <span class="mono" style="color:var(--accent);font-weight:650">37%</span></span>
+                    <span>总仓位: <span class="mono" style="color:var(--accent);font-weight:650" id="ppTotalWeight">37%</span></span>
                     <span class="pp-sep"></span>
-                    <span>总风险: <span class="mono" style="color:var(--warn)">-4.5%</span></span>
+                    <span>总风险: <span class="mono" style="color:var(--warn)" id="ppTotalRisk">-4.5%</span></span>
                     <span class="pp-sep"></span>
                     <span style="color:var(--down)">🛡️ 风控预检: ✅ 全部通过</span>
                   </div>
@@ -475,6 +435,23 @@ function selectAll(){
 }
 
 function clearAll(){
+  // 同步清除 localStorage 中跨页动态加入的候选标的
+  var dynCodes = [];
+  document.querySelectorAll('.ct-row[data-dyn="1"]').forEach(function(r){
+    var c = r.querySelector('.ct-code');
+    if(c) dynCodes.push(c.textContent.trim());
+    r.remove();
+  });
+  if(dynCodes.length){
+    try{
+      var pool = JSON.parse(localStorage.getItem('suying_mock_candidate_pool') || '[]');
+      pool = pool.filter(function(e){
+        var c = (typeof e === 'string') ? e : (e && e.code);
+        return dynCodes.indexOf(c) < 0;
+      });
+      localStorage.setItem('suying_mock_candidate_pool', JSON.stringify(pool));
+    }catch(e){}
+  }
   document.querySelectorAll('.ct-row:not(.excluded)').forEach(function(r){
     r.setAttribute('data-selected','false');
     var cb = r.querySelector('.ct-cb');
@@ -490,7 +467,95 @@ function updateCount(){
   document.getElementById('selCount').textContent = n;
 }
 
+// ===== 筛选 =====
+function setPoolFilter(f, btn){
+  document.querySelectorAll('.filter-bar .filter-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  var visible = 0;
+  document.querySelectorAll('.ct-row').forEach(function(r){
+    var show = true;
+    var stars = r.getAttribute('data-stars');
+    if(f === 'star3') show = stars === '3';
+    else if(f === 'star2') show = stars === '2';
+    else if(f === 'wl') show = r.getAttribute('data-wl') === '1';
+    else if(f === 'avail') show = !r.classList.contains('excluded');
+    r.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  suyingToast('筛选「' + btn.textContent.trim() + '」· 共 ' + visible + ' 只', 'info');
+}
+
+// ===== 风控排除 / 手动恢复 =====
+function excludeAllRisk(){
+  var row = document.getElementById('row000858');
+  if(!row || row.classList.contains('excluded')){ suyingToast('当前无待排除的风险标的', 'info'); return; }
+  suyingConfirm('确认一键排除所有风险标的？000858 五粮液距止损仅 0.7%，将被移出候选池。', function(){
+    row.classList.add('excluded');
+    row.setAttribute('data-selected', 'false');
+    row.removeAttribute('onclick');
+    var cb = row.querySelector('.ct-cb');
+    cb.style.color = 'var(--up)'; cb.textContent = '✕';
+    row.querySelector('.ct-code').style.color = '';
+    var risk = document.getElementById('risk000858');
+    risk.style.color = 'var(--up)'; risk.textContent = '已排除 · 距止损0.7%';
+    var detail = document.getElementById('stopLossDetail');
+    if(detail) detail.innerHTML = '1只距止损 &lt;3% · 000858 <span style="color:var(--up)">已排除</span>';
+    updateCount();
+    suyingToast('已排除 1 只风险标的（000858 五粮液）', 'warn');
+  }, {title:'一键排除所有风险', okText:'确认排除', danger:true});
+}
+
+function restoreStock(code){
+  var row = document.getElementById('row' + code);
+  var risk = document.getElementById('risk' + code);
+  if(!row || !risk) return;
+  var isExcluded = row.classList.contains('excluded');
+  if(!isExcluded && risk.getAttribute('data-ignored') === '1'){ suyingToast(code + ' 的风险警告已被忽略，无需恢复', 'info'); return; }
+  suyingConfirm('确认手动恢复 ' + code + ' 五粮液？操盘手判断止损风险可接受，恢复后该标的可正常勾选。', function(){
+    if(isExcluded){
+      row.classList.remove('excluded');
+      row.setAttribute('onclick', 'toggleSelect(this)');
+      var cb = row.querySelector('.ct-cb');
+      cb.style.color = 'var(--muted)'; cb.textContent = '☐';
+    }
+    risk.setAttribute('data-ignored', '1');
+    risk.style.color = 'var(--muted)'; risk.textContent = '已忽略 · 距止损0.7%';
+    var detail = document.getElementById('stopLossDetail');
+    if(detail) detail.innerHTML = '1只距止损 &lt;3% · 000858 <span style="color:var(--muted)">已手动忽略</span>';
+    suyingToast(code + ' 已手动恢复，可重新勾选', 'ok');
+  }, {title:'手动恢复风险标的', okText:'确认恢复'});
+}
+
+// ===== 方案生成（按勾选动态生成） =====
+var PLAN_PRICE = {'300750':218.50,'688981':68.20,'000858':148.30,'600519':1785.00,'601012':32.80,'002594':292.00,'603259':185.00};
+
 function generatePlan(){
+  var rows = document.querySelectorAll('.ct-row[data-selected="true"]:not(.excluded)');
+  if(rows.length === 0){ suyingToast('请先勾选要生成方案的标的', 'warn'); return; }
+  var n = rows.length;
+  var total = 37; // mock 总仓位预算
+  var base = Math.floor(total / n);
+  var rem = total - base * n;
+  var html = '';
+  var sum = 0;
+  rows.forEach(function(r, i){
+    var code = r.querySelector('.ct-code').textContent.trim();
+    var name = r.querySelector('.ct-name').textContent.trim();
+    var price = PLAN_PRICE[code] || 100;
+    var w = base + (i === 0 ? rem : 0);
+    sum += w;
+    html += '<div class="pp-row">'
+      + '<span style="width:66px;flex-shrink:0"><span class="mono" style="color:var(--accent);font-size:11px">' + code + '</span><span style="font-size:10px;color:var(--fg-2);margin-left:2px">' + name + '</span></span>'
+      + '<span style="width:32px;flex-shrink:0;text-align:center;color:var(--up);font-size:10.5px;font-weight:600">买入</span>'
+      + '<span class="mono" style="width:54px;flex-shrink:0;text-align:right;font-size:11px">' + price.toFixed(2) + '</span>'
+      + '<span style="flex:1;min-width:0;display:flex;align-items:center;gap:5px"><div class="pp-bar"><div class="pp-bar-fill" style="width:' + w + '%"></div></div><span class="mono" style="font-size:10.5px;color:var(--accent)">' + w + '%</span></span>'
+      + '<span class="mono" style="width:50px;flex-shrink:0;text-align:right;font-size:10.5px;color:var(--warn)">' + (price * 0.9).toFixed(2) + '</span>'
+      + '<span class="mono" style="width:50px;flex-shrink:0;text-align:right;font-size:10.5px;color:var(--up)">' + (price * 1.15).toFixed(2) + '</span>'
+      + '</div>';
+  });
+  document.getElementById('ppRows').innerHTML = html;
+  document.getElementById('ppTotalWeight').textContent = sum + '%';
+  document.getElementById('ppTotalRisk').textContent = '-' + (sum * 0.12).toFixed(1) + '%';
   document.getElementById('right-normal').style.display = 'none';
   document.getElementById('right-plan').style.display = '';
 }
@@ -500,16 +565,76 @@ function cancelPlan(){
   document.getElementById('right-normal').style.display = '';
 }
 
+function savePlanMock(mode){
+  try{
+    var codes = [];
+    document.querySelectorAll('.ct-row[data-selected="true"]:not(.excluded)').forEach(function(r){
+      codes.push(r.querySelector('.ct-code').textContent.trim());
+    });
+    var plans = JSON.parse(localStorage.getItem('suying_mock_plans') || '[]');
+    plans.push({mode: mode, codes: codes, time: new Date().toISOString()});
+    localStorage.setItem('suying_mock_plans', JSON.stringify(plans));
+  }catch(e){}
+}
+
 function submitPlan(type){
   if(type === 'auto'){
-    alert('策略已创建并启动！执行器正在逐笔下单...\n跳转到执行监控 Tab');
-    window.location.href = '2.5 execution-monitor-preview.html';
+    suyingConfirm('确认创建策略并启动自动交易？执行器将逐笔下单。', function(){
+      savePlanMock('auto');
+      suyingToast('策略已创建并启动！执行器正在逐笔下单，跳转到执行监控','ok');
+      setTimeout(function(){ window.location.href = '2.5 execution-monitor-preview.html'; }, 900);
+    }, {title:'提交自动交易方案', okText:'确认提交'});
   } else if(type === 'manual'){
-    alert('方案已保存！可在执行监控"今日方案"面板查看\n或前往交易中心手动下单');
+    savePlanMock('manual');
+    suyingToast('方案已保存！可在执行监控「今日方案」面板查看，或前往交易中心手动下单','ok');
+    cancelPlan();
   } else if(type === 'draft'){
-    alert('方案已保存为草稿');
+    savePlanMock('draft');
+    suyingToast('方案已保存为草稿','ok');
+    cancelPlan();
   }
 }
+
+// ===== 跨页候选池合并：读取 localStorage 中其他页面加入的标的并追加渲染 =====
+(function mergeStoredPool(){
+  var wrap = document.querySelector('.ct-wrap');
+  if(!wrap) return;
+  var raw = [];
+  try{ raw = JSON.parse(localStorage.getItem('suying_mock_candidate_pool') || '[]'); }catch(e){ return; }
+  if(!raw.length) return;
+  var staticCodes = {};
+  wrap.querySelectorAll('.ct-row .ct-code').forEach(function(el){ staticCodes[el.textContent.trim()] = 1; });
+  var SRC_LABEL = {auction:'竞价',stock:'自选',screener:'选股',signal:'信号',chain:'产业链',diagnosis:'诊断',prediction:'预测','model-compare':'共识'};
+  var added = 0;
+  raw.forEach(function(e){
+    var it = (typeof e === 'string') ? {code:e, name:'', src:'', date:''} : e;
+    if(!it || !it.code || staticCodes[it.code]) return;
+    staticCodes[it.code] = 1;
+    var src = it.src || it.source || '';
+    var label = SRC_LABEL[src] || '外部';
+    var score = (it.score !== undefined && it.score !== '' && !isNaN(parseFloat(it.score))) ? parseFloat(it.score).toFixed(1) : '60.0';
+    var row = document.createElement('div');
+    row.className = 'ct-row';
+    row.setAttribute('data-dyn', '1');
+    row.setAttribute('data-selected', 'false');
+    row.setAttribute('data-stars', '1');
+    row.setAttribute('onclick', 'toggleSelect(this)');
+    row.innerHTML =
+      '<span class="ct-cb" style="color:var(--muted)">☐</span>'
+      + '<span class="ct-code">' + it.code + '</span>'
+      + '<span class="ct-name">' + (it.name || it.code) + '</span>'
+      + '<span class="ct-stars" style="color:var(--muted)">—</span>'
+      + '<span class="ct-source"><span class="src-badge" title="来源: ' + (src || '外部') + (it.date ? ' · ' + it.date : '') + '">' + label + '</span></span>'
+      + '<span class="ct-source" style="color:var(--muted)">—</span>'
+      + '<span class="ct-source" style="color:var(--muted)">—</span>'
+      + '<span class="ct-kronos" style="color:var(--muted)">—</span>'
+      + '<span class="ct-score" style="color:var(--fg-2)">' + score + '</span>'
+      + '<span class="ct-risk" style="color:var(--down)">✅ 正常</span>';
+    wrap.appendChild(row);
+    added++;
+  });
+  if(added && window.suyingToast) suyingToast('已合并 ' + added + ' 只跨页加入的候选标的', 'info');
+})();
 </script>
 <script src="assets/preview-interactions.js"></script>
 </body>

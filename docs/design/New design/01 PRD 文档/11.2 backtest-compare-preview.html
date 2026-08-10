@@ -4,50 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>速赢AI · 回测分析 — 策略对比</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-/* SubTabBar */
-.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
-.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
-.stb a:hover{color:var(--fg)}
-.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
-
+/* ===== 页面私有样式（token / reset / 壳样式见 assets/app.css） ===== */
 .page-head h1{font-size:21px;font-weight:700;margin-bottom:4px}
 .page-head .sub{font-size:12.5px;color:var(--muted);margin-bottom:6px}
 
@@ -107,21 +66,21 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
           </div>
 <!-- Strategy Checkboxes + Params -->
           <div class="check-panel">
-            <label class="check-group"><input type="checkbox" checked onchange="updateCheck()"><span class="color-dot" style="background:#3d8bff"></span>龙头趋势V2</label>
-            <label class="check-group"><input type="checkbox" checked onchange="updateCheck()"><span class="color-dot" style="background:#ff4d4f"></span>匪爷短线</label>
-            <label class="check-group"><input type="checkbox" onchange="updateCheck()"><span class="color-dot" style="background:#2ec27e"></span>网格交易</label>
-            <label class="check-group"><input type="checkbox" onchange="updateCheck()"><span class="color-dot" style="background:#f5a623"></span>MACD金叉</label>
+            <label class="check-group"><input type="checkbox" checked data-name="龙头趋势V2" onchange="updateCheck()"><span class="color-dot" style="background:#3d8bff"></span>龙头趋势V2</label>
+            <label class="check-group"><input type="checkbox" checked data-name="匪爷短线" onchange="updateCheck()"><span class="color-dot" style="background:#ff4d4f"></span>匪爷短线</label>
+            <label class="check-group"><input type="checkbox" data-name="网格交易" onchange="updateCheck()"><span class="color-dot" style="background:#2ec27e"></span>网格交易</label>
+            <label class="check-group"><input type="checkbox" data-name="MACD金叉" onchange="updateCheck()"><span class="color-dot" style="background:#f5a623"></span>MACD金叉</label>
             <div class="param-group">
               <label>基准</label>
-              <select><option>沪深300</option><option>中证500</option></select>
+              <select id="cmpBench" onchange="changeBench()"><option>沪深300</option><option>中证500</option></select>
             </div>
             <div class="param-group">
               <label>起始</label>
-              <input type="text" value="2025-01-01"/>
+              <input type="text" id="cmpStart" value="2025-01-01"/>
             </div>
             <div class="param-group">
               <label>结束</label>
-              <input type="text" value="2026-06-25"/>
+              <input type="text" id="cmpEnd" value="2026-06-25"/>
             </div>
             <button class="btn-compare" id="btnCompare" onclick="runCompare()">▶️ 运行对比</button>
           </div>
@@ -131,12 +90,14 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             <div class="cc-header">📈 叠加权益曲线 <span style="font-size:10px;color:var(--muted);font-weight:400">点击 Legend 切换显示</span></div>
             <div class="cc-body"><div id="compareChart" style="width:100%;height:100%"></div></div>
             <div class="cc-footer">
-              <span>基准: 沪深300 · 年化 <b style="color:var(--muted)">+8.2%</b></span>
+              <span id="ftBenchInfo">基准: 沪深300 · 年化 <b style="color:var(--muted)">+8.2%</b></span>
               <span style="margin-left:auto">回撤区间 <b style="color:var(--down)">-5.2%~-22.5%</b></span>
             </div>
           </div>
       
           <!-- Compare Table -->
+          <!-- 🥇 最优标注口径：年化收益 / 夏普比率取最大值，最大回撤取绝对值最小；
+               本页为静态 mock 标注，真实环境由 backtest-service 按同一口径计算后返回 -->
           <div class="compare-section">
             <div class="cs-title">📋 核心指标对比</div>
             <table class="compare-table">
@@ -176,7 +137,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <td class="mono" style="color:var(--down)">-5.2%</td>
                   <td class="mono best-cell">2.50 <span class="best-badge">🥇</span></td>
                   <td class="mono">72.3%</td>
-                  <td class="mono" style="color:#2ec27e">2.46</td>
+                  <td class="mono">2.46</td>
                   <td class="mono">23</td>
                 </tr>
               </tbody>
@@ -202,77 +163,117 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
 <script>
-function updateCheck(){
-  var checks=document.querySelectorAll('.check-group input[type=checkbox]');
-  var cnt=0;
-  checks.forEach(function(c){if(c.checked)cnt++;});
-  document.getElementById('btnCompare').disabled=cnt<2;
-}
+var compareChart=null;
+var COLORS=['#3d8bff','#ff4d4f','#2ec27e','#f5a623'];
+var NAMES=['龙头趋势V2','匪爷短线','网格交易','MACD金叉'];
+var SEEDS=[0.52,0.51,0.505,0.53]; // slight positive bias
+var BENCH_RET={'沪深300':'+8.2%','中证500':'+5.6%'};
 
-function runCompare(){
-  var btn=document.getElementById('btnCompare');
-  btn.disabled=true;
-  btn.textContent='对比中...';
-  setTimeout(function(){btn.disabled=false;btn.textContent='▶️ 运行对比';},1500);
-}
-
-// ---- ECharts: Multi-strategy compare ----
-window.addEventListener('DOMContentLoaded',function(){
-  var chart=echarts.init(document.getElementById('compareChart'),null,{renderer:'svg'});
-
+// ---- Mock 数据：4 条策略线 + 基准线 ----
+function genCompareData(benchName){
   var dates=[];
   var d=new Date('2025-01-01');
-  var colors=['#3d8bff','#ff4d4f','#2ec27e','#f5a623'];
-  var names=['龙头趋势V2','匪爷短线','网格交易','MACD金叉'];
-  var series=[];
-  var benchData=[];
-
-  // Generate dates
   for(var i=0;i<360;i++){
     d.setDate(d.getDate()+1);
     if(d.getDay()===0||d.getDay()===6)continue;
     dates.push(d.toISOString().slice(0,10));
   }
-
-  // Generate benchmark data
-  var cumB=0;
-  for(var i=0;i<dates.length;i++){
-    cumB+=(Math.random()-.49)*.008;
-    benchData.push(+(cumB*100).toFixed(2));
-  }
-
-  // Generate 4 strategy lines with different drift
-  var seeds=[0.52,0.51,0.505,0.53]; // slight positive bias
+  var series=[];
   for(var si=0;si<4;si++){
     var data=[],cum=0;
     for(var i=0;i<dates.length;i++){
-      cum+=(Math.random()-seeds[si])*.025;
+      cum+=(Math.random()-SEEDS[si])*.025;
       data.push(+(cum*100).toFixed(2));
     }
     series.push({
-      name:names[si],type:'line',data:data,smooth:true,
-      lineStyle:{color:colors[si],width:2},
+      name:NAMES[si],type:'line',data:data,smooth:true,
+      lineStyle:{color:COLORS[si],width:2},
       symbol:'none'
     });
   }
-
-  // Add benchmark
+  var benchData=[],cumB=0;
+  for(var j=0;j<dates.length;j++){
+    cumB+=(Math.random()-.49)*.008;
+    benchData.push(+(cumB*100).toFixed(2));
+  }
   series.push({
-    name:'沪深300',type:'line',data:benchData,smooth:true,
+    name:benchName,type:'line',data:benchData,smooth:true,
     lineStyle:{color:'#5e6a7d',width:1.5,type:'dashed'},
     symbol:'none'
   });
+  return {dates:dates,series:series};
+}
+
+function currentBench(){return document.getElementById('cmpBench').value;}
+
+function updateCheck(){
+  var checks=document.querySelectorAll('.check-group input[type=checkbox]');
+  var cnt=0;
+  checks.forEach(function(c){
+    if(c.checked)cnt++;
+    // checkbox 与图表联动：勾选状态同步到对应折线的 legend 显隐
+    if(compareChart){
+      compareChart.dispatchAction({type:c.checked?'legendSelect':'legendUnSelect',name:c.getAttribute('data-name')});
+    }
+  });
+  document.getElementById('btnCompare').disabled=cnt<2;
+}
+
+// ---- 基准切换：真实替换基准折线 + footer 文案 ----
+function changeBench(){
+  var bn=currentBench();
+  if(compareChart){
+    var g=genCompareData(bn);
+    compareChart.setOption({series:g.series},{replaceMerge:['series']});
+    updateCheck();
+  }
+  document.getElementById('ftBenchInfo').innerHTML='基准: '+bn+' · 年化 <b style="color:var(--muted)">'+BENCH_RET[bn]+'</b>';
+  suyingToast('基准已切换为 '+bn,'info');
+}
+
+function runCompare(){
+  // ---- 日期校验 ----
+  var s=document.getElementById('cmpStart').value.trim();
+  var e=document.getElementById('cmpEnd').value.trim();
+  var dRe=/^\d{4}-\d{2}-\d{2}$/;
+  if(!dRe.test(s)||!dRe.test(e)){suyingToast('日期格式应为 YYYY-MM-DD','error');return;}
+  if(s>e){suyingToast('起始日期不能晚于结束日期','error');return;}
+
+  var btn=document.getElementById('btnCompare');
+  btn.disabled=true;
+  btn.textContent='对比中...';
+  setTimeout(function(){
+    if(compareChart){
+      var g=genCompareData(currentBench());
+      compareChart.setOption({xAxis:{data:g.dates},series:g.series},{replaceMerge:['series']});
+    }
+    btn.disabled=false;
+    btn.textContent='▶️ 运行对比';
+    updateCheck();
+    suyingToast('✅ 对比完成 · 结果已更新','ok');
+  },1500);
+}
+
+// ---- ECharts: Multi-strategy compare ----
+window.addEventListener('DOMContentLoaded',function(){
+  var chart=echarts.init(document.getElementById('compareChart'),(window.suyingEchartsTheme?suyingEchartsTheme():'dark'),{renderer:'svg'});
+  compareChart=chart;
+
+  var g=genCompareData(currentBench());
 
   chart.setOption({
     grid:{left:65,right:25,top:15,bottom:55},
-    xAxis:{type:'category',data:dates,axisLabel:{fontSize:9,color:'#5e6a7d',interval:40}},
+    xAxis:{type:'category',data:g.dates,axisLabel:{fontSize:9,color:'#5e6a7d',interval:40}},
     yAxis:{type:'value',name:'累计收益 %',axisLabel:{fontSize:9,color:'#5e6a7d'},splitLine:{lineStyle:{color:'#1f2733'}}},
-    series:series,
+    series:g.series,
     dataZoom:[{type:'slider',bottom:30,height:18,borderColor:'#1f2733'}],
     legend:{bottom:5,textStyle:{fontSize:10,color:'#9aa7b8'}},
     tooltip:{trigger:'axis'},
     backgroundColor:'transparent'
   });
+
+  // 初始同步：未勾选的策略折线默认隐藏
+  updateCheck();
 
   window.addEventListener('resize',function(){chart.resize()});
 });

@@ -166,6 +166,21 @@ async def data_status(user: dict = Depends(get_current_user_jwt)):
 async def data_inventory(user: dict = Depends(get_current_user_jwt)):
     return inventory.inventory()
 
+@router.get("/tables/{table_id}/preview")
+async def data_table_preview(
+    table_id: str,
+    limit: int = Query(50, ge=1, le=500, description="预览行数, 1-500"),
+    user: dict = Depends(get_current_user_jwt),
+):
+    """预览数据表前 N 行。table_id 必须在 inventory 白名单内，否则 404。"""
+    if table_id not in inventory.TABLES:
+        raise HTTPException(404, f"未知数据表: {table_id}")
+    try:
+        return await asyncio.to_thread(inventory.table_preview, table_id, limit)
+    except Exception as e:
+        logger.exception("Table preview failed for %s", table_id)
+        raise HTTPException(500, str(e))
+
 @router.get("/jobs")
 async def data_jobs(user: dict = Depends(get_current_user_jwt)):
     return get_job_status()

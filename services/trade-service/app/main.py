@@ -13,12 +13,13 @@ for _pkg in ["kronos-factors", "kronos-core", "kronos-data", "kronos-auth"]:
         sys.path.insert(0, _path)
 
 from app.routes import router
+from app.routers.risk import router as risk_router
 from kronos_contracts.app_factory import create_app
 
 app = create_app(
     "trade-service",
     "0.1.0",
-    [router],
+    [router, risk_router],
     description="Paper & live trading — unified Order API, risk gateway, broker integration",
     health_extra={"mode": os.environ.get("TRADE_MODE", "paper")},
 )

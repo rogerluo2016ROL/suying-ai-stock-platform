@@ -3,45 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 多股对比</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:16px 20px 28px}
-
 /* Quick Select Bar */
 .qsb{display:flex;flex-direction:column;gap:5px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}
 .qsb .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -79,6 +44,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .ctbl tr:last-child td{border-bottom:none}
 .ctbl tbody tr{cursor:pointer;transition:background .1s}
 .ctbl tbody tr:hover td{background:var(--elevated)}
+.ctbl tbody tr.flash td{background:var(--accent-dim);transition:background 1.2s}
 .ctbl .star{color:var(--warn);font-family:var(--font-sans)}
 
 /* Chart */
@@ -130,7 +96,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <div class="qsc"><span class="n">中国平安</span><span class="c">601318</span></div>
                       <div class="qsc"><span class="n">五粮液</span><span class="c">000858</span></div>
                       <div class="qsc"><span class="n">阳光电源</span><span class="c">300274</span></div>
-                      <input type="text" placeholder="🔍 搜索代码/名称...">
+                      <input type="text" id="qsb-search" placeholder="🔍 搜索代码/名称...">
                     </div>
                   </div>
 <!-- Toolbar: Sort + Batch Actions -->
@@ -144,23 +110,23 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     </select>
                     <div style="flex:1"></div>
                     <div class="batch">
-                      <button class="primary">➕ 加入自选</button>
-                      <button>🔔 批量预警</button>
-                      <button>📤 导出CSV</button>
+                      <button class="primary" id="btn-watch">➕ 加入自选</button>
+                      <button id="btn-alert">🔔 批量预警</button>
+                      <button id="btn-export">📤 导出CSV</button>
                     </div>
                   </div>
             
                   <!-- Compare Table -->
                   <div class="psc" style="margin-bottom:12px">
-                    <div class="psc-h">📋 核心指标对比 · 候选池 4 只</div>
+                    <div class="psc-h">📋 核心指标对比 · 候选池 <span id="cmp-count">4</span> 只</div>
                     <div class="psc-b" style="padding:0;overflow-x:auto">
                       <table class="ctbl">
                         <thead><tr><th>代码</th><th>名称</th><th>当前价</th><th>预测价</th><th>涨幅</th><th>置信度</th><th>信号一致</th><th>准确率</th><th>评级</th></tr></thead>
                         <tbody>
-                          <tr data-name="宁德时代"><td>300750</td><td class="nm">宁德时代</td><td>218.50</td><td class="up">242.30</td><td class="up">+12.5%</td><td>78%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>72%</td><td class="star">⭐⭐⭐</td></tr>
-                          <tr data-name="中芯国际"><td>688981</td><td class="nm">中芯国际</td><td>68.20</td><td class="up">73.80</td><td class="up">+8.2%</td><td>72%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>68%</td><td class="star">⭐⭐</td></tr>
-                          <tr data-name="兆易创新"><td>603986</td><td class="nm">兆易创新</td><td>152.00</td><td class="up">168.50</td><td class="up">+10.8%</td><td>75%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>70%</td><td class="star">⭐⭐⭐</td></tr>
-                          <tr data-name="隆基绿能"><td>601012</td><td class="nm">隆基绿能</td><td>32.80</td><td class="up">35.20</td><td class="up">+7.3%</td><td>68%</td><td><span style="color:var(--warn)">⚠ 弱</span></td><td>65%</td><td class="star">⭐⭐</td></tr>
+                          <tr data-name="宁德时代" data-rating="3" data-pct="12.5" data-conf="78" data-sig="1"><td>300750</td><td class="nm">宁德时代</td><td>218.50</td><td class="up">242.30</td><td class="up">+12.5%</td><td>78%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>72%</td><td class="star">⭐⭐⭐</td></tr>
+                          <tr data-name="中芯国际" data-rating="2" data-pct="8.2" data-conf="72" data-sig="1"><td>688981</td><td class="nm">中芯国际</td><td>68.20</td><td class="up">73.80</td><td class="up">+8.2%</td><td>72%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>68%</td><td class="star">⭐⭐</td></tr>
+                          <tr data-name="兆易创新" data-rating="3" data-pct="10.8" data-conf="75" data-sig="1"><td>603986</td><td class="nm">兆易创新</td><td>152.00</td><td class="up">168.50</td><td class="up">+10.8%</td><td>75%</td><td><span style="color:var(--down)">✅ 一致</span></td><td>70%</td><td class="star">⭐⭐⭐</td></tr>
+                          <tr data-name="隆基绿能" data-rating="2" data-pct="7.3" data-conf="68" data-sig="0"><td>601012</td><td class="nm">隆基绿能</td><td>32.80</td><td class="up">35.20</td><td class="up">+7.3%</td><td>68%</td><td><span style="color:var(--warn)">⚠ 弱</span></td><td>65%</td><td class="star">⭐⭐</td></tr>
                         </tbody>
                       </table>
                     </div>
@@ -178,7 +144,21 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <script src="assets/shell.js"></script>
 <script>
 (function(){
-var compareColors=['#3d8bff','#ff4d4f','#2ec27e','#f5a623']
+var compareColors=['#3d8bff','#ff4d4f','#2ec27e','#f5a623','#b37feb','#13c2c2','#e8edf4','#5e6a7d']
+
+/* Mock 标的库：快选条 / 搜索加入对比共用 */
+var STOCK_DB={
+  '300750':{name:'宁德时代',price:'218.50',target:'242.30',pct:12.5,conf:78,sig:1,acc:72,rating:3,seed:0},
+  '688981':{name:'中芯国际',price:'68.20',target:'73.80',pct:8.2,conf:72,sig:1,acc:68,rating:2,seed:-0.3},
+  '603986':{name:'兆易创新',price:'152.00',target:'168.50',pct:10.8,conf:75,sig:1,acc:70,rating:3,seed:0.5},
+  '601012':{name:'隆基绿能',price:'32.80',target:'35.20',pct:7.3,conf:68,sig:0,acc:65,rating:2,seed:1.0},
+  '600519':{name:'贵州茅台',price:'1580.00',target:'1660.00',pct:5.1,conf:74,sig:1,acc:70,rating:2,seed:1.4},
+  '002594':{name:'比亚迪',price:'98.50',target:'96.40',pct:-2.1,conf:61,sig:0,acc:58,rating:1,seed:1.8},
+  '002371':{name:'北方华创',price:'385.00',target:'420.00',pct:9.1,conf:80,sig:1,acc:74,rating:3,seed:2.2},
+  '601318':{name:'中国平安',price:'52.30',target:'55.40',pct:5.9,conf:70,sig:1,acc:66,rating:2,seed:2.6},
+  '000858':{name:'五粮液',price:'145.60',target:'152.80',pct:4.9,conf:69,sig:1,acc:65,rating:2,seed:3.0},
+  '300274':{name:'阳光电源',price:'88.40',target:'96.20',pct:8.8,conf:73,sig:1,acc:69,rating:2,seed:3.4}
+}
 
 function genCurve(seedOff,peak){
   var s=42+seedOff*100,rs=[]
@@ -187,40 +167,94 @@ function genCurve(seedOff,peak){
 }
 
 var compareStocks=[
-  {name:'宁德时代',curve:genCurve(0,12.5)},
-  {name:'中芯国际',curve:genCurve(-0.3,8.2)},
-  {name:'兆易创新',curve:genCurve(0.5,10.8)},
-  {name:'隆基绿能',curve:genCurve(1.0,7.3)}
+  {code:'300750',name:'宁德时代',curve:genCurve(0,12.5)},
+  {code:'688981',name:'中芯国际',curve:genCurve(-0.3,8.2)},
+  {code:'603986',name:'兆易创新',curve:genCurve(0.5,10.8)},
+  {code:'601012',name:'隆基绿能',curve:genCurve(1.0,7.3)}
 ]
 
 var predDays=[]
 for(var i=0;i<30;i++)predDays.push('D'+(i+1))
 
-var chartCompare=echarts.init(document.getElementById('chart-compare'))
-var option={
-  backgroundColor:'transparent',
-  tooltip:{trigger:'axis',valueFormatter:function(v){return v+'%'}},
-  grid:{left:'8%',right:'6%',top:'10%',bottom:'12%'},
-  xAxis:{type:'category',data:predDays,axisLabel:{fontSize:10,color:'#5e6a7d'},axisLine:{lineStyle:{color:'#1f2733'}}},
-  yAxis:{type:'value',axisLabel:{formatter:'{value}%',fontSize:10,color:'#5e6a7d'},splitLine:{lineStyle:{color:'#1f2733'}},name:'涨跌幅%',nameTextStyle:{fontSize:10,color:'#5e6a7d'}},
-  legend:{data:compareStocks.map(function(s){return s.name}),bottom:0,textStyle:{color:'#9aa7b8',fontSize:11}},
-  series:compareStocks.map(function(s,i){return{name:s.name,type:'line',data:s.curve,smooth:true,lineStyle:{color:compareColors[i],width:2},symbol:'none'}})
+var chartCompare=echarts.init(document.getElementById('chart-compare'), (window.suyingEchartsTheme?suyingEchartsTheme():'dark'))
+function seriesOf(s,i){return{name:s.name,type:'line',data:s.curve,smooth:true,lineStyle:{color:compareColors[i%compareColors.length],width:2},symbol:'none'}}
+function renderChart(){
+  chartCompare.setOption({
+    backgroundColor:'transparent',
+    tooltip:{trigger:'axis',valueFormatter:function(v){return v+'%'}},
+    grid:{left:'8%',right:'6%',top:'10%',bottom:'12%'},
+    xAxis:{type:'category',data:predDays,axisLabel:{fontSize:10,color:'#5e6a7d'},axisLine:{lineStyle:{color:'#1f2733'}}},
+    yAxis:{type:'value',axisLabel:{formatter:'{value}%',fontSize:10,color:'#5e6a7d'},splitLine:{lineStyle:{color:'#1f2733'}},name:'涨跌幅%',nameTextStyle:{fontSize:10,color:'#5e6a7d'}},
+    legend:{data:compareStocks.map(function(s){return s.name}),bottom:0,textStyle:{color:'#9aa7b8',fontSize:11}},
+    series:compareStocks.map(seriesOf)
+  },true)
 }
-chartCompare.setOption(option)
+renderChart()
 
-// Sort
+function updateCount(){
+  document.getElementById('cmp-count').textContent=compareStocks.length
+}
+
+/* 行点击 → 跳转单股预测 */
+var tbody=document.querySelector('.ctbl tbody')
+function bindRow(tr){
+  tr.addEventListener('click',function(){
+    var code=tr.querySelector('td').textContent.trim()
+    location.href='5.1 single-stock-preview.html?code='+code
+  })
+}
+tbody.querySelectorAll('tr').forEach(bindRow)
+
+/* 高亮已在对比池中的标的 */
+function flashRow(code){
+  var tr=Array.from(tbody.querySelectorAll('tr')).find(function(r){return r.querySelector('td').textContent.trim()===code})
+  if(!tr)return
+  tr.scrollIntoView({block:'center',behavior:'smooth'})
+  tr.classList.add('flash')
+  setTimeout(function(){tr.classList.remove('flash')},1200)
+}
+
+/* 加入对比：新增表格行 + 图表曲线 */
+function addToCompare(code){
+  var s=STOCK_DB[code]
+  if(!s)return
+  var tr=document.createElement('tr')
+  tr.dataset.rating=s.rating
+  tr.dataset.pct=s.pct
+  tr.dataset.conf=s.conf
+  tr.dataset.sig=s.sig
+  var pctCls=s.pct>=0?'up':'down'
+  var pctTxt=(s.pct>=0?'+':'')+s.pct.toFixed(1)+'%'
+  var sigHtml=s.sig?'<span style="color:var(--down)">✅ 一致</span>':'<span style="color:var(--warn)">⚠ 弱</span>'
+  tr.innerHTML='<td>'+code+'</td><td class="nm">'+s.name+'</td><td>'+s.price+'</td><td class="'+pctCls+'">'+s.target+'</td><td class="'+pctCls+'">'+pctTxt+'</td><td>'+s.conf+'%</td><td>'+sigHtml+'</td><td>'+s.acc+'%</td><td class="star">'+'⭐'.repeat(s.rating)+'</td>'
+  tbody.appendChild(tr)
+  bindRow(tr)
+  compareStocks.push({code:code,name:s.name,curve:genCurve(s.seed,s.pct)})
+  renderChart()
+  updateCount()
+  flashRow(code)
+}
+
+/* 快选 / 搜索统一入口：已在池中 → 高亮；不在 → 加入对比 */
+function focusStock(code){
+  if(compareStocks.some(function(s){return s.code===code})){
+    flashRow(code)
+    if(window.suyingToast)suyingToast(STOCK_DB[code].name+' 已在对比池，已定位', 'info')
+  }else{
+    addToCompare(code)
+    if(window.suyingToast)suyingToast('已将 '+STOCK_DB[code].name+' '+code+' 加入对比', 'ok')
+  }
+}
+
+/* Sort —— 按行上的 data-* 属性排序，不再依赖脆弱的 td 索引 */
 document.getElementById('sort-key').addEventListener('change',function(){
-  var tbody=document.querySelector('.ctbl tbody')
   var rows=Array.from(tbody.querySelectorAll('tr'))
   var key=this.value
   rows.sort(function(a,b){
-    var tdA=a.querySelectorAll('td'),tdB=b.querySelectorAll('td')
-    if(key==='rating'){var sa=tdA[8].textContent.length,sb=tdB[8].textContent.length;return sb-sa}
-    if(key==='pct'){var pa=parseFloat(tdA[4].textContent),pb=parseFloat(tdB[4].textContent);return pb-pa}
-    if(key==='conf'){var ca=parseInt(tdA[5].textContent),cb=parseInt(tdB[5].textContent);return cb-ca}
-    return 0
+    return parseFloat(b.dataset[key]||0)-parseFloat(a.dataset[key]||0)
   })
   rows.forEach(function(r){tbody.appendChild(r)})
+  if(window.suyingToast)suyingToast('已按 '+this.options[this.selectedIndex].text.replace(' ▾','')+' 排序', 'info')
 })
 
 // Quick select
@@ -228,7 +262,73 @@ document.querySelectorAll('.qsc').forEach(function(chip){
   chip.addEventListener('click',function(){
     document.querySelectorAll('.qsc').forEach(function(c){c.classList.remove('active')})
     chip.classList.add('active')
+    var codeEl=chip.querySelector('.c')
+    if(codeEl)focusStock(codeEl.textContent.trim())
   })
+})
+
+/* 搜索框：回车按代码/名称匹配 */
+var searchInput=document.getElementById('qsb-search')
+if(searchInput){
+  searchInput.addEventListener('keydown',function(e){
+    if(e.key!=='Enter')return
+    var q=searchInput.value.trim()
+    if(!q)return
+    var hit=Object.keys(STOCK_DB).find(function(code){
+      return code===q||STOCK_DB[code].name===q||STOCK_DB[code].name.indexOf(q)>=0||code.indexOf(q)===0
+    })
+    if(hit){
+      focusStock(hit)
+      searchInput.value=''
+      searchInput.blur()
+    }else if(window.suyingToast){
+      suyingToast('未找到标的「'+q+'」，请检查代码/名称','warn')
+    }
+  })
+}
+
+/* 批量操作 */
+document.getElementById('btn-watch').addEventListener('click',function(){
+  try{
+    // 统一 schema: [{code, name, src, date}]，兼容历史字符串元素；合并而非覆盖
+    var list=JSON.parse(localStorage.getItem('suying_mock_watchlist')||'[]')
+    list=list.map(function(e){return typeof e==='string'?{code:e,name:'',src:'',date:''}:e}).filter(function(e){return e&&e.code})
+    var today=new Date().toISOString().slice(0,10)
+    compareStocks.forEach(function(s){
+      if(!list.some(function(e){return e.code===s.code})) list.push({code:s.code,name:s.name,src:'prediction',date:today})
+    })
+    localStorage.setItem('suying_mock_watchlist',JSON.stringify(list))
+  }catch(err){}
+  if(window.suyingToast)suyingToast('已将 '+compareStocks.length+' 只标的加入自选','ok')
+})
+document.getElementById('btn-alert').addEventListener('click',function(){
+  if(!window.suyingConfirm)return
+  suyingConfirm('为对比池 '+compareStocks.length+' 只标的批量设置预测偏差预警？',function(){
+    try{
+      var alerts=JSON.parse(localStorage.getItem('suying_mock_alerts')||'[]')
+      compareStocks.forEach(function(s){alerts.push({code:s.code,name:s.name,type:'偏差预警',ts:Date.now()})})
+      localStorage.setItem('suying_mock_alerts',JSON.stringify(alerts))
+    }catch(err){}
+    if(window.suyingToast)suyingToast('批量预警已设置（'+compareStocks.length+' 只）','ok')
+  },{title:'批量预警',okText:'确认设置'})
+})
+document.getElementById('btn-export').addEventListener('click',function(){
+  var header=['代码','名称','当前价','预测价','涨幅%','置信度%','信号一致','准确率%','评级']
+  var lines=[header.join(',')]
+  tbody.querySelectorAll('tr').forEach(function(tr){
+    var s=STOCK_DB[tr.querySelector('td').textContent.trim()]
+    if(!s)return
+    lines.push([tr.querySelector('td').textContent.trim(),s.name,s.price,s.target,s.pct.toFixed(1),s.conf,s.sig?'一致':'弱',s.acc,s.rating].join(','))
+  })
+  var blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8'})
+  var a=document.createElement('a')
+  a.href=URL.createObjectURL(blob)
+  a.download='多股对比.csv'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(a.href)
+  if(window.suyingToast)suyingToast('已导出 '+lines.length-1+' 行对比数据','ok')
 })
 
 window.addEventListener('resize',function(){chartCompare.resize()})

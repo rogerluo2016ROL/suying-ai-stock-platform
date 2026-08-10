@@ -8,7 +8,7 @@ from kronos_auth import require_role
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import auto_strategy_pg_store, plan_pg_store
+from app import auto_strategy_pg_store, plan_pg_store, settlement_store
 from app.database import get_db
 from app.plan_store import get_store
 from app.platform_scope import plan_to_dict, resolve_platform_scope
@@ -45,6 +45,18 @@ async def _plan_query_safe(db: AsyncSession, **filters):
         return await plan_pg_store.query(db, **filters)
     except Exception as exc:
         logger.warning("Failed to query strategy plans from DB: filters=%s error=%s", filters, exc)
+        return None
+
+
+async def _settlement_get_safe(db: AsyncSession | None, plan_id: str):
+    if db is None:
+        return None
+    try:
+        return await settlement_store.pg_get(db, plan_id)
+    except Exception as exc:
+        # plan_settlements table is not migrated yet — treat as cache miss and
+        # fall back to the in-memory settlement store.
+        logger.warning("Failed to query settlement for plan %s: %s", plan_id, exc)
         return None
 
 
@@ -346,6 +358,49 @@ async def generate_report(
     }
 
     return report
+
+
+@router.get("/plans/{plan_id}/settlement-report")
+async def get_settlement_report(
+    plan_id: str,
+    tenant_id: str | None = Header(default=None, alias="X-Tenant-Id"),
+    account_id: str | None = Header(default=None, alias="X-Trade-Account-Id"),
+    data_scope: str | None = Header(default=None, alias="X-Data-Scope"),
+    db: AsyncSession | None = Depends(get_db),
+    user: dict = Depends(require_role("admin", "internal_analyst", "user", "external_analyst")),
+):
+    """Settlement report for a settled plan (PRD 9.4).
+
+    404: plan not found (same behavior as other plan routes).
+    409: plan exists but has not been settled yet.
+    """
+    scope = resolve_platform_scope(user, tenant_id=tenant_id, account_id=account_id, data_scope=data_scope)
+
+    pg_result = await _plan_query_safe(db, plan_id=plan_id, **scope)
+    if pg_result and pg_result["plans"]:
+        plan_info = pg_result["plans"][0]
+    else:
+        plan = store.get_for_scope(plan_id, **scope)
+        if not plan:
+            raise HTTPException(404, "方案不存在")
+        plan_info = {**plan_to_dict(plan), "picks": plan.picks}
+
+    record = await _settlement_get_safe(db, plan_id)
+    source = "pg"
+    if record is None:
+        record = settlement_store.get_settlement_store().get(plan_id)
+        source = "memory"
+    if record is None and plan_info.get("status") not in settlement_store.SETTLED_STATUSES:
+        raise HTTPException(409, "方案尚未结算，暂无结算报告")
+
+    return settlement_store.build_settlement_report(
+        plan_id=plan_id,
+        plan_name=plan_info.get("name") or "",
+        capital=float(plan_info.get("capital") or 1_000_000),
+        picks=plan_info.get("picks") or [],
+        record=record,
+        source=source,
+    )
 
 
 @router.get("/templates")

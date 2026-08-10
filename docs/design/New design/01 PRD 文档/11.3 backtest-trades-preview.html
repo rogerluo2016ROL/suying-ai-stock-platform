@@ -6,48 +6,7 @@
 <title>速赢AI · 回测分析 — 交易明细</title>
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
-
-/* SubTabBar */
-.stb{display:flex;gap:2px;padding:3px;background:var(--surface-2);border-radius:8px;width:fit-content;flex-shrink:0;margin-bottom:14px}
-.stb a{padding:5px 16px;border-radius:6px;font-size:12px;font-weight:500;color:var(--fg-2);cursor:pointer;border:none;background:transparent;transition:.12s;font-family:var(--font-sans);text-decoration:none;display:inline-block}
-.stb a:hover{color:var(--fg)}
-.stb a.on{background:var(--accent-dim);color:var(--accent);font-weight:650}
-
+/* ===== 页面私有样式（token / reset / 壳样式见 assets/app.css） ===== */
 .page-head h1{font-size:21px;font-weight:700;margin-bottom:4px}
 .page-head .sub{font-size:12.5px;color:var(--muted);margin-bottom:6px}
 
@@ -59,10 +18,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .filter-tab{padding:4px 14px;border-radius:12px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);transition:.12s;font-family:var(--font-mono)}
 .filter-tab:hover{border-color:var(--accent);color:var(--fg)}
 .filter-tab.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);font-weight:600}
-.filter-tab.win{border-color:var(--down);color:var(--down)}
-.filter-tab.win.active{background:var(--down-bg)}
-.filter-tab.loss{border-color:var(--up);color:var(--up)}
-.filter-tab.loss.active{background:var(--up-bg)}
+.filter-tab.win{border-color:var(--up);color:var(--up)}
+.filter-tab.win.active{background:var(--up-bg)}
+.filter-tab.loss{border-color:var(--down);color:var(--down)}
+.filter-tab.loss.active{background:var(--down-bg)}
 
 /* Trades table */
 .trades-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
@@ -74,8 +33,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .trades-table .side-buy{color:var(--up);font-weight:600}
 .trades-table .side-sell{color:var(--down);font-weight:600}
 .trades-table .reason-tag{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:550;display:inline-block}
-.trades-table .reason-tag.take-profit{background:var(--down-bg);color:var(--down)}
-.trades-table .reason-tag.stop-loss{background:var(--up-bg);color:var(--up)}
+.trades-table .reason-tag.take-profit{background:var(--up-bg);color:var(--up)}
+.trades-table .reason-tag.stop-loss{background:var(--down-bg);color:var(--down)}
 .trades-table .reason-tag.expire{background:var(--elevated);color:var(--muted)}
 
 /* Summary */
@@ -106,23 +65,22 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <!-- Filter Bar -->
           <div class="filter-bar">
             <span style="font-size:10.5px;color:var(--muted);font-weight:600">策略:</span>
-            <select onchange="filterTrades()">
-              <option>龙头趋势V2 · 47笔</option>
-              <option>匪爷短线 · 32笔</option>
-              <option>网格交易 · 23笔</option>
-              <option>MACD金叉 · 89笔</option>
+            <select id="stratSelect" onchange="changeStrat()">
+              <option value="龙头趋势V2">龙头趋势V2 · 47笔</option>
+              <option value="匪爷短线">匪爷短线 · 32笔</option>
+              <option value="网格交易">网格交易 · 23笔</option>
+              <option value="MACD金叉">MACD金叉 · 89笔</option>
             </select>
             <div class="filter-tabs" id="filterTabs">
-              <div class="filter-tab active" onclick="setFilter('all',this)">全部 47</div>
-              <div class="filter-tab win" onclick="setFilter('win',this)">盈利 32</div>
-              <div class="filter-tab loss" onclick="setFilter('loss',this)">亏损 15</div>
+              <div class="filter-tab active" id="tabAll" onclick="setFilter('all',this)">全部 47</div>
+              <div class="filter-tab win" id="tabWin" onclick="setFilter('win',this)">盈利 32</div>
+              <div class="filter-tab loss" id="tabLoss" onclick="setFilter('loss',this)">亏损 15</div>
             </div>
-            <span style="margin-left:auto;font-size:10.5px;color:var(--muted)">按卖出日倒序 · 20条/页</span>
           </div>
       
           <!-- Trades Table -->
           <div class="trades-card">
-            <div class="tc-header">📋 交易记录 <span style="margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted)">显示 10 / 47 笔</span></div>
+            <div class="tc-header">📋 交易记录 <span style="margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted)" id="tcCount">显示 1-10 / 47 笔</span></div>
             <div style="max-height:420px;overflow-y:auto">
               <table class="trades-table">
                 <thead>
@@ -139,36 +97,35 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <th style="width:70px">原因</th>
                   </tr>
                 </thead>
-                <tbody id="tradesBody">
-                  <tr><td style="color:var(--muted)">1</td><td style="color:var(--accent)">600519</td><td>茅台</td><td class="mono">06-10</td><td class="mono">06-25</td><td class="mono">1,785.0</td><td class="mono">1,950.0</td><td class="mono" style="color:var(--up);font-weight:650">+9.2%</td><td class="mono">11天</td><td><span class="reason-tag take-profit">止盈</span></td></tr>
-                  <tr><td style="color:var(--muted)">2</td><td style="color:var(--accent)">300750</td><td>宁德</td><td class="mono">06-05</td><td class="mono">06-20</td><td class="mono">218.5</td><td class="mono">248.0</td><td class="mono" style="color:var(--up);font-weight:650">+13.5%</td><td class="mono">11天</td><td><span class="reason-tag take-profit">止盈</span></td></tr>
-                  <tr><td style="color:var(--muted)">3</td><td style="color:var(--accent)">688981</td><td>中芯</td><td class="mono">06-02</td><td class="mono">06-12</td><td class="mono">68.2</td><td class="mono">75.2</td><td class="mono" style="color:var(--up);font-weight:650">+10.3%</td><td class="mono">8天</td><td><span class="reason-tag take-profit">止盈</span></td></tr>
-                  <tr><td style="color:var(--muted)">4</td><td style="color:var(--accent)">000858</td><td>五粮液</td><td class="mono">05-25</td><td class="mono">06-03</td><td class="mono">152.0</td><td class="mono">139.8</td><td class="mono" style="color:var(--down);font-weight:650">-8.0%</td><td class="mono">6天</td><td><span class="reason-tag stop-loss">止损</span></td></tr>
-                  <tr><td style="color:var(--muted)">5</td><td style="color:var(--accent)">603986</td><td>兆易</td><td class="mono">05-20</td><td class="mono">05-28</td><td class="mono">153.0</td><td class="mono">160.5</td><td class="mono" style="color:var(--up);font-weight:650">+4.9%</td><td class="mono">6天</td><td><span class="reason-tag take-profit">止盈</span></td></tr>
-                  <tr><td style="color:var(--muted)">6</td><td style="color:var(--accent)">002594</td><td>比亚迪</td><td class="mono">05-15</td><td class="mono">05-22</td><td class="mono">98.5</td><td class="mono">106.3</td><td class="mono" style="color:var(--up);font-weight:650">+7.9%</td><td class="mono">5天</td><td><span class="reason-tag take-profit">止盈</span></td></tr>
-                  <tr><td style="color:var(--muted)">7</td><td style="color:var(--accent)">600036</td><td>招商</td><td class="mono">05-10</td><td class="mono">05-28</td><td class="mono">38.2</td><td class="mono">39.8</td><td class="mono" style="color:var(--up);font-weight:650">+4.2%</td><td class="mono">14天</td><td><span class="reason-tag expire">到期</span></td></tr>
-                  <tr><td style="color:var(--muted)">8</td><td style="color:var(--accent)">688981</td><td>中芯</td><td class="mono">05-05</td><td class="mono">05-10</td><td class="mono">62.5</td><td class="mono">58.2</td><td class="mono" style="color:var(--down);font-weight:650">-6.9%</td><td class="mono">3天</td><td><span class="reason-tag stop-loss">止损</span></td></tr>
-                  <tr><td style="color:var(--muted)">9</td><td style="color:var(--accent)">300750</td><td>宁德</td><td class="mono">04-28</td><td class="mono">05-08</td><td class="mono">195.0</td><td class="mono">218.5</td><td class="mono" style="color:var(--up);font-weight:650">+12.1%</td><td class="mono">7天</td><td><span class="reason-tag take-profit">止盈</span></td></tr>
-                  <tr><td style="color:var(--muted)">10</td><td style="color:var(--accent)">600519</td><td>茅台</td><td class="mono">04-20</td><td class="mono">04-28</td><td class="mono">1,680.0</td><td class="mono">1,950.0</td><td class="mono" style="color:var(--up);font-weight:650">+16.1%</td><td class="mono">6天</td><td><span class="reason-tag take-profit">止盈</span></td></tr>
-                </tbody>
+                <tbody id="tradesBody"></tbody>
               </table>
+            </div>
+            <div class="empty" id="tradesEmpty" style="display:none">当前筛选条件下暂无交易记录</div>
+            <!-- 分页（mock：对当前策略的模拟成交分页） -->
+            <div class="tc-header" style="border-top:1px solid var(--border);border-bottom:none">
+              <span style="font-weight:400;color:var(--muted);font-size:10.5px">按卖出日倒序 · 10条/页</span>
+              <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                <button type="button" class="btn sm" id="btnPrev">← 上一页</button>
+                <span id="pageInfo" style="font-family:var(--font-mono);font-size:10.5px;color:var(--fg-2)">第 1 / 5 页</span>
+                <button type="button" class="btn sm" id="btnNext">下一页 →</button>
+              </span>
             </div>
           </div>
       
           <!-- Summary -->
           <div class="summary-card">
             <div class="s-row">
-              <span class="s-item" style="color:var(--up)"><span class="s-label">盈利交易</span>32笔 平均 <b>+8.5%</b></span>
-              <span class="s-item" style="color:var(--down)"><span class="s-label">亏损交易</span>15笔 平均 <b>-4.2%</b></span>
-              <span class="s-item" style="color:var(--fg)"><span class="s-label">平均持有</span><b>6.3天</b></span>
-              <span class="s-item" style="color:var(--fg)"><span class="s-label">胜率</span><b style="color:var(--up)">68.1%</b></span>
+              <span class="s-item" style="color:var(--up)"><span class="s-label">盈利交易</span><span id="sumWin">32笔 平均 <b>+8.5%</b></span></span>
+              <span class="s-item" style="color:var(--down)"><span class="s-label">亏损交易</span><span id="sumLoss">15笔 平均 <b>-4.2%</b></span></span>
+              <span class="s-item" style="color:var(--fg)"><span class="s-label">平均持有</span><b id="sumHold">6.3天</b></span>
+              <span class="s-item" style="color:var(--fg)"><span class="s-label">胜率</span><b style="color:var(--up)" id="sumRate">68.1%</b></span>
             </div>
             <div class="s-row">
-              <span class="s-item" style="color:var(--up)"><span class="s-label">最大盈利</span><b>+22.1%</b> (宁德 300750 · 01-03→01-10)</span>
-              <span class="s-item" style="color:var(--down)"><span class="s-label">最大亏损</span><b>-9.8%</b> (中芯 688981 · 03-15→03-18)</span>
+              <span class="s-item" style="color:var(--up)"><span class="s-label">最大盈利</span><span id="sumMaxWin"><b>+22.1%</b> (宁德 300750 · 01-03→01-10)</span></span>
+              <span class="s-item" style="color:var(--down)"><span class="s-label">最大亏损</span><span id="sumMaxLoss"><b>-9.8%</b> (中芯 688981 · 03-15→03-18)</span></span>
               <span style="margin-left:auto">
                 <button class="btn-export" onclick="exportCSV()">📥 导出CSV</button>
-                <button class="btn-export" style="margin-left:8px" onclick="exportCSV()">📊 导出Excel</button>
+                <button class="btn-export" style="margin-left:8px" onclick="exportExcel()">📊 导出Excel</button>
               </span>
             </div>
           </div>
@@ -186,29 +143,152 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
 <script>
+// ===== 交易明细：策略联动 + 盈亏筛选 + 分页 + CSV 导出（全部为确定性 mock） =====
+var PAGE_SIZE=10;
+var state={strat:'龙头趋势V2',filter:'all',page:1};
+
+// 汇总指标为静态 mock（与 11.1/11.2 的口径一致）；笔数与 tab 计数由生成的成交明细实算
+var STRATS={
+  '龙头趋势V2':{total:47,avgWin:'+8.5%',avgLoss:'-4.2%',avgHold:'6.3天',winRate:'68.1%',maxWin:'+22.1%',maxWinRef:'宁德 300750 · 01-03→01-10',maxLoss:'-9.8%',maxLossRef:'中芯 688981 · 03-15→03-18'},
+  '匪爷短线':{total:32,avgWin:'+5.1%',avgLoss:'-3.1%',avgHold:'2.8天',winRate:'62.5%',maxWin:'+14.6%',maxWinRef:'兆易 603986 · 02-11→02-13',maxLoss:'-7.4%',maxLossRef:'五粮液 000858 · 04-02→04-03'},
+  '网格交易':{total:23,avgWin:'+3.2%',avgLoss:'-1.8%',avgHold:'4.5天',winRate:'73.9%',maxWin:'+8.9%',maxWinRef:'招商 600036 · 03-05→03-12',maxLoss:'-4.1%',maxLossRef:'中芯 688981 · 05-19→05-21'},
+  'MACD金叉':{total:89,avgWin:'+6.7%',avgLoss:'-3.9%',avgHold:'5.1天',winRate:'61.8%',maxWin:'+18.3%',maxWinRef:'比亚迪 002594 · 01-15→01-22',maxLoss:'-11.2%',maxLossRef:'宁德 300750 · 02-25→03-02'}
+};
+var POOL=[['600519','茅台',1785.0],['300750','宁德',218.5],['688981','中芯',68.2],['000858','五粮液',152.0],['603986','兆易',153.0],['002594','比亚迪',98.5],['600036','招商',38.2]];
+
+function seedOf(str){var h=0;for(var i=0;i<str.length;i++){h=(h*31+str.charCodeAt(i))>>>0;}return h;}
+function lcg(seed){return function(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};}
+function fmt2(m,d){return (m<10?'0'+m:m)+'-'+(d<10?'0'+d:d);}
+
+var tradesCache={};
+function genTrades(name){
+  if(tradesCache[name])return tradesCache[name];
+  var meta=STRATS[name],r=lcg(seedOf(name)),list=[];
+  for(var i=0;i<meta.total;i++){
+    var s=POOL[i%POOL.length];
+    var pnl=+(r()*30-10).toFixed(1);            // -10.0 ~ +20.0
+    if(pnl===0)pnl=0.1;
+    var hold=Math.floor(r()*14)+2;
+    var buyM=1+Math.floor(r()*5),buyD=1+Math.floor(r()*20);
+    var sellD=buyD+hold,sellM=buyM;
+    while(sellD>28){sellD-=28;sellM++;}
+    var buyP=s[2]*(0.9+r()*0.2);
+    var sellP=buyP*(1+pnl/100);
+    var reason=pnl>=8?'止盈':(pnl<=-5?'止损':'到期');
+    list.push({code:s[0],name:s[1],buy:fmt2(buyM,buyD),sell:fmt2(sellM,sellD),buyP:buyP,sellP:sellP,pnl:pnl,hold:hold,reason:reason});
+  }
+  list.sort(function(a,b){return b.sell.localeCompare(a.sell);});  // 按卖出日倒序
+  meta.win=list.filter(function(t){return t.pnl>0;}).length;
+  meta.loss=list.length-meta.win;
+  tradesCache[name]=list;
+  return list;
+}
+
+function currentList(){
+  var list=genTrades(state.strat);
+  if(state.filter==='win')return list.filter(function(t){return t.pnl>0;});
+  if(state.filter==='loss')return list.filter(function(t){return t.pnl<=0;});
+  return list;
+}
+
+function render(){
+  var meta=STRATS[state.strat];
+  var list=currentList();
+  var pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));
+  if(state.page>pages)state.page=pages;
+  var start=(state.page-1)*PAGE_SIZE;
+  var rows=list.slice(start,start+PAGE_SIZE);
+  var html='';
+  rows.forEach(function(t,i){
+    var cls=t.pnl>0?'var(--up)':'var(--down)';
+    var sign=t.pnl>0?'+':'';
+    var rcls=t.reason==='止盈'?'take-profit':(t.reason==='止损'?'stop-loss':'expire');
+    html+='<tr><td style="color:var(--muted)">'+(start+i+1)+'</td><td style="color:var(--accent)">'+t.code+'</td><td>'+t.name+'</td>'+
+      '<td class="mono">'+t.buy+'</td><td class="mono">'+t.sell+'</td>'+
+      '<td class="mono">'+t.buyP.toFixed(1)+'</td><td class="mono">'+t.sellP.toFixed(1)+'</td>'+
+      '<td class="mono" style="color:'+cls+';font-weight:650">'+sign+t.pnl.toFixed(1)+'%</td>'+
+      '<td class="mono">'+t.hold+'天</td><td><span class="reason-tag '+rcls+'">'+t.reason+'</span></td></tr>';
+  });
+  document.getElementById('tradesBody').innerHTML=html;
+  document.getElementById('tradesEmpty').style.display=rows.length?'none':'block';
+  document.getElementById('tcCount').textContent='显示 '+(rows.length?(start+1)+'-'+(start+rows.length):'0')+' / '+list.length+' 笔';
+  document.getElementById('pageInfo').textContent='第 '+state.page+' / '+pages+' 页';
+  document.getElementById('btnPrev').disabled=state.page<=1;
+  document.getElementById('btnNext').disabled=state.page>=pages;
+  // 筛选 tab 计数与汇总卡联动
+  document.getElementById('tabAll').textContent='全部 '+meta.total;
+  document.getElementById('tabWin').textContent='盈利 '+meta.win;
+  document.getElementById('tabLoss').textContent='亏损 '+meta.loss;
+  document.getElementById('sumWin').innerHTML=meta.win+'笔 平均 <b>'+meta.avgWin+'</b>';
+  document.getElementById('sumLoss').innerHTML=meta.loss+'笔 平均 <b>'+meta.avgLoss+'</b>';
+  document.getElementById('sumHold').textContent=meta.avgHold;
+  document.getElementById('sumRate').textContent=meta.winRate;
+  document.getElementById('sumMaxWin').innerHTML='<b>'+meta.maxWin+'</b> ('+meta.maxWinRef+')';
+  document.getElementById('sumMaxLoss').innerHTML='<b>'+meta.maxLoss+'</b> ('+meta.maxLossRef+')';
+}
+
 function setFilter(mode,el){
   var tabs=document.querySelectorAll('#filterTabs .filter-tab');
   tabs.forEach(function(t){t.classList.remove('active');});
   el.classList.add('active');
-
-  var rows=document.querySelectorAll('#tradesBody tr');
-  rows.forEach(function(r){
-    var pctCell=r.querySelectorAll('td')[7];
-    var pctText=pctCell?pctCell.textContent.trim():'';
-    var isWin=pctText.startsWith('+');
-    if(mode==='all'){r.style.display='';}
-    else if(mode==='win'){r.style.display=isWin?'':'none';}
-    else if(mode==='loss'){r.style.display=isWin?'none':'';}
-  });
+  state.filter=mode;
+  state.page=1;
+  render();
 }
 
-function filterTrades(){
-  // Strategy change handler - would reload data in real app
+function changeStrat(){
+  state.strat=document.getElementById('stratSelect').value;
+  state.filter='all';
+  state.page=1;
+  var tabs=document.querySelectorAll('#filterTabs .filter-tab');
+  tabs.forEach(function(t){t.classList.remove('active');});
+  document.getElementById('tabAll').classList.add('active');
+  render();
+  suyingToast('已切换策略：'+state.strat,'info');
 }
 
 function exportCSV(){
-  alert('CSV 导出: 回测明细_龙头趋势V2_2026-06-26.csv\n\n包含字段: 编号,代码,名称,买入日期,卖出日期,买入价,卖出价,盈亏%,持有天数,原因');
+  var list=currentList();
+  var lines=[['编号','代码','名称','买入日期','卖出日期','买入价','卖出价','盈亏%','持有天数','原因'].join(',')];
+  list.forEach(function(t,i){
+    lines.push([i+1,t.code,t.name,t.buy,t.sell,t.buyP.toFixed(1),t.sellP.toFixed(1),(t.pnl>0?'+':'')+t.pnl.toFixed(1)+'%',t.hold+'天',t.reason].join(','));
+  });
+  var blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='回测明细_'+state.strat+'_2026-06-26.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);
+  suyingToast('已导出 '+list.length+' 条交易记录','ok');
 }
+
+// 导出 Excel（HTML 表格 .xls，Excel/WPS 可直接打开）
+function exportExcel(){
+  var list=currentList();
+  var rows=list.map(function(t,i){
+    return '<tr><td>'+(i+1)+'</td><td>'+t.code+'</td><td>'+t.name+'</td><td>'+t.buy+'</td><td>'+t.sell+'</td>'+
+      '<td>'+t.buyP.toFixed(1)+'</td><td>'+t.sellP.toFixed(1)+'</td><td>'+(t.pnl>0?'+':'')+t.pnl.toFixed(1)+'%</td>'+
+      '<td>'+t.hold+'天</td><td>'+t.reason+'</td></tr>';
+  }).join('');
+  var html='<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>'+
+    '<table border="1"><thead><tr><th>编号</th><th>代码</th><th>名称</th><th>买入日期</th><th>卖出日期</th><th>买入价</th><th>卖出价</th><th>盈亏%</th><th>持有天数</th><th>原因</th></tr></thead><tbody>'+
+    rows+'</tbody></table></body></html>';
+  var blob=new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='回测明细_'+state.strat+'_2026-06-26.xls';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},0);
+  suyingToast('已导出 '+list.length+' 条交易记录 (Excel)','ok');
+}
+
+window.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('btnPrev').addEventListener('click',function(){if(state.page>1){state.page--;render();}});
+  document.getElementById('btnNext').addEventListener('click',function(){state.page++;render();});
+  render();
+});
 </script>
 <script src="assets/preview-interactions.js"></script>
 </body>

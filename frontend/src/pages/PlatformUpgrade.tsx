@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ApartmentOutlined, CloudServerOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { healthApi, trainingApi, type TrainingModelRecord } from '../api/client'
-import { liveTradeApi } from '../api/liveTrade'
+import { tradeApi } from '../api/domains/trade/api'
 import {
   DataDomainBadge,
   DataFreshnessBar,
@@ -64,8 +64,8 @@ export default function PlatformUpgrade() {
       healthApi.check('trade'),
       healthApi.check('training'),
       trainingApi.getModels({ page: 1, page_size: 20 }),
-      liveTradeApi.getBrokerStatus(),
-      liveTradeApi.getRiskConfig(),
+      tradeApi.getBrokerStatus(),
+      tradeApi.getRiskConfig(),
     ]).then(results => {
       if (!mounted) return
       const [gateway, auth, trade, training, models, broker, risk] = results

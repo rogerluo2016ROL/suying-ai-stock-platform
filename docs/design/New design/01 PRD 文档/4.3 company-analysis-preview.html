@@ -3,43 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 多维度分析</title>
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --purple:#a371f7; --purple-dim:rgba(163,113,247,0.12);
-  --cyan:#39d9d0; --cyan-dim:rgba(57,217,208,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)} .purple{color:var(--purple)} .cyan{color:var(--cyan)}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.nav-sub{padding-left:24px}
-.nav-sub .nav-item{font-size:12.5px;padding:6px 12px}
+.warn{color:var(--warn)}
 
 /* ── Progress Bar ── */
 .progress-bar{display:flex;align-items:center;gap:0;margin-bottom:18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:4px;overflow:hidden}
@@ -58,10 +26,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .tab-nav .tab-item{flex:1;padding:9px 20px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--fg-2);font-weight:500;text-align:center;transition:.12s;white-space:nowrap}
 .tab-nav .tab-item:hover{color:var(--fg);background:var(--surface-2)}
 .tab-nav .tab-item.active{background:var(--accent-dim);color:var(--accent);font-weight:650}
-
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:18px 20px 32px}
 
 /* Top Bar */
 .sc-top{display:flex;align-items:center;gap:14px;margin-bottom:10px;flex-wrap:wrap}
@@ -82,11 +46,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .ctx-bar .ctx-hint{margin-left:auto;font-size:11px;color:var(--muted)}
 
 /* Card */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px}
-.card-h{display:flex;align-items:center;gap:9px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.card-h h3{font-size:13.5px;font-weight:650}
-.card-h .meta{margin-left:auto;font-size:11px;color:var(--muted)}
-.card-b{padding:16px;overflow-x:auto}
+.card{margin-bottom:12px}
+.card-b{overflow-x:auto}
 
 /* Moat Table */
 .moat-table{width:100%;border-collapse:collapse;font-size:12.5px}
@@ -116,8 +77,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 
 /* Tag */
 .tag{display:inline-block;font-size:9.5px;padding:2px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);white-space:nowrap}
-.tag.ir{color:var(--purple);border-color:var(--purple);background:var(--purple-dim)}
-.tag.sub{color:var(--cyan);border-color:var(--cyan);background:var(--cyan-dim)}
+.tag.ir{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
+.tag.sub{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
 .tag.ck{color:var(--up);border-color:var(--up);background:var(--up-bg)}
 .tag.ac{color:var(--accent);border-color:var(--accent);background:var(--accent-dim)}
 .tag.green{color:var(--down);border-color:var(--down);background:var(--down-bg)}
@@ -168,8 +129,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .dec-btn.primary:hover{background:#2d7ae0}
 .dec-btn.danger{background:var(--up);border-color:var(--up);color:#fff}
 .dec-btn.danger:hover{background:#e04345}
-.dec-btn.link{background:var(--purple-dim);border-color:var(--purple);color:var(--purple)}
-.dec-btn.link:hover{background:rgba(163,113,247,0.25)}
+.dec-btn.link{background:var(--accent-dim);border-color:var(--accent);color:var(--accent)}
+.dec-btn.link:hover{background:rgba(61,139,255,0.25)}
 
 /* Checkbox */
 .cb-wrap{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--fg-2)}
@@ -296,7 +257,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <div class="bn-col-header">
                       🔴 一级卡脖子 <span class="bn-count">3 只</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">中微公司</span>
                       <span class="bni-code">688012.SH</span>
                       <span class="bni-rate">国产化率 8%</span>
@@ -306,7 +267,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       ├ 垄断方：应用材料 / 泛林<br>
                       └ 技术差距：≥ 2 代，5nm 刻蚀仍依赖进口
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">南大光电</span>
                       <span class="bni-code">300346.SZ</span>
                       <span class="bni-rate">国产化率 5%</span>
@@ -316,7 +277,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       ├ 垄断方：JSR / 东京应化<br>
                       └ 技术差距：1-2 代，ArF 干法已突破，浸没式仍在研
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">晶瑞电材</span>
                       <span class="bni-code">300655.SZ</span>
                       <span class="bni-rate">国产化率 6%</span>
@@ -333,7 +294,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <div class="bn-col-header">
                       🟡 二级卡脖子 <span class="bn-count">3 只</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">北方华创</span>
                       <span class="bni-code">002371.SZ</span>
                       <span class="bni-rate">国产化率 25%</span>
@@ -343,7 +304,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       ├ 已突破：28nm 以上成熟制程<br>
                       └ 差距：14nm 以下仍在追赶
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">沪硅产业</span>
                       <span class="bni-code">688126.SH</span>
                       <span class="bni-rate">国产化率 30%</span>
@@ -353,7 +314,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       ├ 已突破：部分规格量产<br>
                       └ 差距：良率 vs 信越/SUMCO
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">华大九天</span>
                       <span class="bni-code">301269.SZ</span>
                       <span class="bni-rate">国产化率 20%</span>
@@ -370,32 +331,32 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                     <div class="bn-col-header">
                       🟢 非卡脖子 <span class="bn-count">6 只</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">长电科技</span>
                       <span class="bni-code">600584.SH</span>
                       <span class="bni-rate">国产化率 85%</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">通富微电</span>
                       <span class="bni-code">002156.SZ</span>
                       <span class="bni-rate">国产化率 80%</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">华天科技</span>
                       <span class="bni-code">002185.SZ</span>
                       <span class="bni-rate">国产化率 90%</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">圣邦股份</span>
                       <span class="bni-code">300661.SZ</span>
                       <span class="bni-rate">自主可控</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">兆易创新</span>
                       <span class="bni-code">603986.SH</span>
                       <span class="bni-rate">自主可控</span>
                     </div>
-                    <div class="bn-item">
+                    <div class="bn-item" onclick="bnClick(this)">
                       <span class="bni-name">韦尔股份</span>
                       <span class="bni-code">603501.SH</span>
                       <span class="bni-rate">自主可控</span>
@@ -415,7 +376,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <table class="comm-table">
                   <thead>
                     <tr>
-                      <th><input type="checkbox" checked style="accent-color:var(--accent)"></th>
+                      <th><input type="checkbox" id="commSelectAll" checked style="accent-color:var(--accent)" onchange="commToggleAll(this)"></th>
                       <th>公司</th>
                       <th>代码</th>
                       <th>🏭 产业周期</th>
@@ -427,7 +388,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   </thead>
                   <tbody>
                     <tr>
-                      <td><input type="checkbox" checked></td>
+                      <td><input type="checkbox" class="comm-cb" checked onchange="commRowChange()"></td>
                       <td class="cn">中微公司</td>
                       <td class="cc">688012.SH</td>
                       <td><span class="comm-phase growth">成长期</span></td>
@@ -437,7 +398,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <td><span class="res-badge triple">✅ 三重共振</span></td>
                     </tr>
                     <tr>
-                      <td><input type="checkbox" checked></td>
+                      <td><input type="checkbox" class="comm-cb" checked onchange="commRowChange()"></td>
                       <td class="cn">北方华创</td>
                       <td class="cc">002371.SZ</td>
                       <td><span class="comm-phase growth">成长期</span></td>
@@ -447,7 +408,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <td><span class="res-badge triple">✅ 三重共振</span></td>
                     </tr>
                     <tr>
-                      <td><input type="checkbox"></td>
+                      <td><input type="checkbox" class="comm-cb" onchange="commRowChange()"></td>
                       <td class="cn">沪硅产业</td>
                       <td class="cc">688126.SH</td>
                       <td><span class="comm-phase intro">导入期</span></td>
@@ -457,7 +418,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <td><span class="res-badge waiting">⚠️ 等待拐点</span></td>
                     </tr>
                     <tr>
-                      <td><input type="checkbox" checked></td>
+                      <td><input type="checkbox" class="comm-cb" checked onchange="commRowChange()"></td>
                       <td class="cn">南大光电</td>
                       <td class="cc">300346.SZ</td>
                       <td><span class="comm-phase growth">成长期</span></td>
@@ -467,7 +428,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <td><span class="res-badge triple">✅ 三重共振</span></td>
                     </tr>
                     <tr>
-                      <td><input type="checkbox"></td>
+                      <td><input type="checkbox" class="comm-cb" onchange="commRowChange()"></td>
                       <td class="cn">长电科技</td>
                       <td class="cc">600584.SH</td>
                       <td><span class="comm-phase mature">成熟期</span></td>
@@ -477,7 +438,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <td><span class="res-badge waiting">⚠️ 等待拐点</span></td>
                     </tr>
                     <tr>
-                      <td><input type="checkbox" checked></td>
+                      <td><input type="checkbox" class="comm-cb" checked onchange="commRowChange()"></td>
                       <td class="cn">圣邦股份</td>
                       <td class="cc">300661.SZ</td>
                       <td><span class="comm-phase growth">成长期</span></td>
@@ -509,8 +470,8 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
                   <!-- 已选中 -->
                   <div class="dec-bar">
-                    <span class="dec-selected">已选 <span>4</span> 只</span>
-                    <span style="font-size:11px;color:var(--fg-2)">
+                    <span class="dec-selected">已选 <span id="decSelCount">4</span> 只</span>
+                    <span style="font-size:11px;color:var(--fg-2)" id="decSelList">
                       中微公司(688012) · 北方华创(002371) · 南大光电(300346) · 圣邦股份(300661)
                     </span>
                     <span class="dec-hint">操作后将写入候选池/自选表</span>
@@ -518,10 +479,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
                   <!-- 操作按钮 -->
                   <div class="dec-bar">
-                    <button class="dec-btn primary">➕ 加入候选池</button>
-                    <button class="dec-btn">⭐ 加入自选</button>
-                    <button class="dec-btn">📄 导出报告</button>
-                    <button class="dec-btn link">🔗 关联开盘决策</button>
+                    <button class="dec-btn primary" onclick="addToPool()">➕ 加入候选池</button>
+                    <button class="dec-btn" onclick="addToWatchlist()">⭐ 加入自选</button>
+                    <button class="dec-btn" onclick="exportReport()">📄 导出报告</button>
+                    <button class="dec-btn link" onclick="linkOpenDecision()">🔗 关联开盘决策</button>
                     <span style="font-size:10.5px;color:var(--muted);margin-left:auto">
                       关联后将跳转到 /open-decision?from=sc&codes=688012,002371,...
                     </span>
@@ -534,12 +495,170 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 </div>
               </div>
             </div>
-</div>
     </main>
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="assets/shell.js"></script>
+
+<script>
+// ── 商业化进程勾选 → 决策输出联动 ──
+function selectedCompanies() {
+  var picks = [];
+  document.querySelectorAll('.comm-table tbody tr').forEach(function(tr) {
+    var cb = tr.querySelector('.comm-cb');
+    if (!cb || !cb.checked) return;
+    var name = tr.querySelector('.cn').textContent.trim();
+    var code = tr.querySelector('.cc').textContent.trim().replace(/\.(SH|SZ)$/, '');
+    var badge = tr.querySelector('.res-badge');
+    picks.push({
+      code: code,
+      name: name,
+      score: tr.querySelector('.res-score') ? tr.querySelector('.res-score').textContent.trim() : '',
+      grade: badge ? badge.textContent.trim() : '',
+      industry: '半导体设备',
+      source: 'company-analysis',
+      src: 'chain',
+      model: '多维度分析',
+      date: '2026-06-26'
+    });
+  });
+  return picks;
+}
+
+function updateCommSelection() {
+  var picks = selectedCompanies();
+  document.getElementById('decSelCount').textContent = picks.length;
+  document.getElementById('decSelList').textContent = picks.length
+    ? picks.map(function(p) { return p.name + '(' + p.code + ')'; }).join(' · ')
+    : '暂未勾选公司，勾选后可执行下方操作';
+  var all = document.querySelectorAll('.comm-cb');
+  var checked = document.querySelectorAll('.comm-cb:checked');
+  document.getElementById('commSelectAll').checked = all.length > 0 && all.length === checked.length;
+}
+
+function commRowChange() { updateCommSelection(); }
+
+function commToggleAll(cb) {
+  document.querySelectorAll('.comm-cb').forEach(function(c) { c.checked = cb.checked; });
+  updateCommSelection();
+}
+
+// ── 卡脖子条目点击 → 跳转个股诊断 ──
+function bnClick(el) {
+  var name = el.querySelector('.bni-name').textContent.trim();
+  var code = el.querySelector('.bni-code').textContent.trim().replace(/\.(SH|SZ)$/, '');
+  location.href = '12.0 diagnosis-preview.html?code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name);
+}
+
+// ── 候选池 / 自选（localStorage 跨页共享 mock 状态）──
+function mergeIntoStorage(key, items) {
+  var list = [];
+  try { list = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { list = []; }
+  // 统一 schema: [{code, name, src, date, ...}]，兼容历史字符串元素
+  list = list.map(function(e) { return typeof e === 'string' ? { code: e, name: '', src: '', date: '' } : e; }).filter(function(e) { return e && e.code; });
+  items.forEach(function(p) {
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) { if (list[i].code === p.code) { idx = i; break; } }
+    if (idx >= 0) list[idx] = p; else list.push(p);
+  });
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
+function addToPool() {
+  var picks = selectedCompanies();
+  if (!picks.length) {
+    if (window.suyingToast) suyingToast('请先勾选要加入候选池的公司', 'warn');
+    return;
+  }
+  mergeIntoStorage('suying_mock_candidate_pool', picks);
+  if (window.suyingToast) suyingToast('已添加 ' + picks.length + ' 只到候选池（携带综合评分/共振标签/卡脖子级别）', 'ok');
+}
+
+function addToWatchlist() {
+  var picks = selectedCompanies();
+  if (!picks.length) {
+    if (window.suyingToast) suyingToast('请先勾选要加入自选的公司', 'warn');
+    return;
+  }
+  mergeIntoStorage('suying_mock_watchlist', picks);
+  if (window.suyingToast) suyingToast('已添加 ' + picks.length + ' 只到自选', 'ok');
+}
+
+// ── 关联开盘决策 ──
+function linkOpenDecision() {
+  var picks = selectedCompanies();
+  if (!picks.length) {
+    if (window.suyingToast) suyingToast('请先勾选要关联的公司', 'warn');
+    return;
+  }
+  var codes = picks.map(function(p) { return p.code; }).join(',');
+  location.href = '2.1 decision-overview-preview.html?from=sc&codes=' + encodeURIComponent(codes);
+}
+
+// ── 导出报告（ExportModal：Markdown 真实下载）──
+function exportReport() {
+  var picks = selectedCompanies();
+  var mask = document.createElement('div');
+  mask.className = 'dlg-mask';
+  mask.innerHTML =
+    '<div class="dlg" role="dialog" aria-modal="true">' +
+      '<div class="dlg-title">导出分析报告</div>' +
+      '<div class="dlg-body">行业: 半导体设备 · 候选 12 家 · 已勾选 ' + picks.length + ' 家\n选择导出格式：</div>' +
+      '<div class="dlg-ops">' +
+        '<button class="btn dlg-cancel">取消</button>' +
+        '<button class="btn dlg-pdf">PDF</button>' +
+        '<button class="btn dlg-ok primary">Markdown</button>' +
+      '</div>' +
+    '</div>';
+  function close() { mask.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e) { if (e.key === 'Escape') close(); }
+  mask.querySelector('.dlg-cancel').addEventListener('click', close);
+  mask.addEventListener('click', function(e) { if (e.target === mask) close(); });
+  mask.querySelector('.dlg-pdf').addEventListener('click', function() {
+    close();
+    if (window.suyingToast) suyingToast('PDF 导出依赖后端 Pandoc 服务，预览环境暂支持 Markdown', 'warn');
+  });
+  mask.querySelector('.dlg-ok').addEventListener('click', function() {
+    close();
+    downloadMarkdown(picks);
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(mask);
+}
+
+function downloadMarkdown(picks) {
+  var lines = [
+    '# 半导体设备 · 多维度分析报告',
+    '',
+    '- 生成时间: 2026-06-26 15:30',
+    '- 候选公司: 12 家 · 三重共振 4 只 · 等待拐点 2 只',
+    '',
+    '## 已勾选公司 (' + picks.length + ')',
+    ''
+  ];
+  if (picks.length) {
+    picks.forEach(function(p) {
+      lines.push('- ' + p.name + '(' + p.code + ') 共振分 ' + p.score + ' ' + p.grade);
+    });
+  } else {
+    lines.push('- （未勾选公司，导出全量摘要）');
+  }
+  lines.push('', '## 卡脖子分级', '', '- 🔴 一级: 中微公司 / 南大光电 / 晶瑞电材', '- 🟡 二级: 北方华创 / 沪硅产业 / 华大九天', '- 🟢 非: 长电科技 / 通富微电 / 华天科技 / 圣邦股份 / 兆易创新 / 韦尔股份', '');
+  var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'company-analysis_半导体设备_2026-06-26.md';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  if (window.suyingToast) suyingToast('分析报告已导出（Markdown）', 'ok');
+}
+
+// ── Init ──
+updateCommSelection();
+</script>
 
 <script src="assets/preview-interactions.js"></script>
 </body>

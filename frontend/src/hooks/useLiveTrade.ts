@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { message } from 'antd'
 import axios from 'axios'
-import { liveTradeApi } from '../api/liveTrade'
+import { tradeApi } from '../api/domains/trade/api'
 import type { BrokerConnectRequest, PlaceOrderRequest } from '../api/types'
 
 export type TradeMode = 'paper' | 'live'
@@ -93,7 +93,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
 
   // Fetch risk config on mount
   useEffect(() => {
-    liveTradeApi.getRiskConfig()
+    tradeApi.getRiskConfig()
       .then(r => setRiskConfig(r.data))
       .catch(() => {
         // No fallback — threshold only from backend to avoid config inconsistency
@@ -106,7 +106,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
     if (mode !== 'live') return
 
     const pollBroker = () => {
-      liveTradeApi.getBrokerStatus()
+      tradeApi.getBrokerStatus()
         .then(r => {
           const status = r.data?.status || 'disconnected'
           setBrokerStatus(status)
@@ -133,7 +133,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
     if (mode !== 'live') return
 
     const pollBreaker = () => {
-      liveTradeApi.getCircuitBreakerStatus()
+      tradeApi.getCircuitBreakerStatus()
         .then(r => {
           const breakers = r.data?.breakers || []
           setCircuitBreaker(breakers[0] || null)
@@ -163,7 +163,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
   const connectBroker = useCallback(async (config: BrokerConnectRequest) => {
     setBrokerStatus('connecting')
     try {
-      const r = await liveTradeApi.connectBroker(config)
+      const r = await tradeApi.connectBroker(config)
       setBrokerStatus(r.data?.status || 'connected')
       if (r.data?.status === 'connected') {
         message.success(config.environment === 'sandbox' ? 'QMT Sandbox 已连接' : '券商连接成功')
@@ -187,7 +187,7 @@ export function useLiveTrade(): UseLiveTradeReturn {
     // Step 1: Risk pre-check for both paper and live modes. The backend owns the
     // same verdict contract in both paths, so the UI can present one risk gate.
     try {
-      const checkResult = await liveTradeApi.preCheck({ ...params, trade_mode: effectiveMode })
+      const checkResult = await tradeApi.preCheck({ ...params, trade_mode: effectiveMode })
       const preCheck: PreCheckResult = checkResult.data
 
       if (!preCheck.passed) {
@@ -233,13 +233,13 @@ export function useLiveTrade(): UseLiveTradeReturn {
     }
 
     // Step 3: Submit order
-    // P0-01: paper/live unified through the axios-wrapped liveTradeApi.placeOrder.
+    // P0-01: paper/live unified through the axios-wrapped tradeApi.placeOrder.
     // Previously the paper branch used a raw fetch() that bypassed client.ts — no
     // Authorization header, no 401 refresh, no withCredentials cookie. Now both modes
     // go through the single axios instance so the auth contract is consistent. The
     // backend decides paper vs live from its own account/broker config.
     try {
-      const r = await liveTradeApi.placeOrder({ ...params, trade_mode: effectiveMode, confirmed: largeOrderConfirmed })
+      const r = await tradeApi.placeOrder({ ...params, trade_mode: effectiveMode, confirmed: largeOrderConfirmed })
       const data = r.data
       message.success(data.message || '下单成功')
       return { success: true, data }

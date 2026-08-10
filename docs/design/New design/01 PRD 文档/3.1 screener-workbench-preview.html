@@ -3,46 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 智能选股 — 选股工作台</title>
 
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active,
-.nav-item.sub-active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before,
-.nav-item.sub-active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.header .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
-.header .status-dot.open{background:var(--down);box-shadow:0 0 6px rgba(46,194,126,.4)}
-.content{padding:18px 20px 32px}
+.warn{color:var(--warn)}
 
 /* Model Selector */
 .model-section{margin-bottom:16px}
@@ -243,10 +208,6 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 .footer-bar{display:flex;align-items:center;gap:20px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:10.5px;color:var(--muted)}
 .footer-bar .sep{width:1px;height:12px;background:var(--border)}
 
-/* Scroll */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
 /* Loading overlay */
 .loading-overlay{
   position:fixed;inset:0;z-index:100;
@@ -341,10 +302,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
             <span class="pval">20</span>
             <span class="psep"></span>
             <span class="plabel">筛选</span>
-            <button class="filter-btn active">全部</button>
-            <button class="filter-btn">主板</button>
-            <button class="filter-btn">创业板</button>
-            <button class="filter-btn">科创板</button>
+            <button class="filter-btn active" onclick="setBoardFilter('', this)">全部</button>
+            <button class="filter-btn" onclick="setBoardFilter('main', this)">主板</button>
+            <button class="filter-btn" onclick="setBoardFilter('cyb', this)">创业板</button>
+            <button class="filter-btn" onclick="setBoardFilter('kcb', this)">科创板</button>
             <span class="psep"></span>
             <span class="plabel" style="color:var(--down)">排除ST</span>
             <button class="run-btn" onclick="runScreener()">▶ 运行选股</button>
@@ -437,6 +398,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <span class="wb-grade"><span class="grade-tag grade-C">C</span></span>
                   <span class="wb-industry">食品饮料</span><span class="wb-mcap">6,893</span>
                 </div>
+                <div class="empty" id="wbEmpty" hidden>当前筛选条件下暂无选股结果</div>
               </div>
       
               <!-- Batch Actions -->
@@ -446,9 +408,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                 <span style="margin-left:8px;color:var(--fg-2);font-size:12px">已选</span>
                 <span class="sel-cnt" id="selCount">1</span>
                 <span style="color:var(--fg-2);font-size:12px">只</span>
-                <button class="action-btn primary" style="margin-left:auto">加入候选池 →</button>
-                <button class="action-btn">加入自选 ⭐</button>
-                <button class="action-btn text">导出 CSV</button>
+                <button class="action-btn primary" style="margin-left:auto" onclick="addBatchToPool()">加入候选池 →</button>
+                <button class="action-btn" onclick="addBatchToWatchlist()">加入自选 ⭐</button>
+                <button class="action-btn text" onclick="exportCSV()">导出 CSV</button>
               </div>
             </div>
       
@@ -518,9 +480,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
       
                   <!-- Actions -->
                   <div class="detail-actions">
-                    <button class="action-btn primary">加入候选池</button>
-                    <button class="action-btn">触发回测</button>
-                    <button class="action-btn">查看诊断</button>
+                    <button class="action-btn primary" onclick="addDetailToPool()">加入候选池</button>
+                    <button class="action-btn" onclick="goBacktest()">触发回测</button>
+                    <button class="action-btn" onclick="goDiagnosis()">查看诊断</button>
                   </div>
       
                 </div>
@@ -533,7 +495,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
           <div class="footer-bar">
             <span>智能选股 · 选股工作台 | 盘后 16:18</span>
             <span class="sep"></span>
-            <span>模型: 毕师傅趋势启动 V13 | 结果: 10只</span>
+            <span>模型: <span id="footerModel">毕师傅趋势启动 V13</span> | 结果: <span id="footerCount">10</span>只</span>
             <span class="sep"></span>
             <span>数据来源: screener-service (screening_snapshots) + Kronos 模型引擎</span>
           </div>
@@ -541,10 +503,27 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
   </div>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+  <div class="loading-spin"></div>
+  <div class="loading-text" id="loadingText">正在运行选股，请稍候…</div>
+</div>
 <script src="assets/shell.js"></script>
 <script>
 // ═══ Current State ═══
 var currentModel = 'bi_trend';
+var boardFilter = '';
+var currentDetail = {code:'300750', name:'宁德时代', score:'92.5'};
+
+var modelNames = {
+  bi_trend: '毕师傅趋势启动 V13',
+  leader_scalp: '秋神盘后龙头',
+  short: '匪爷短线',
+  bi_full: '毕师傅全市场 V1.0',
+  long: '长线价值',
+  all: '综合多因子',
+  chokepoint: '大葱卡脖子',
+  cb_floor: '底价选债'
+};
 
 // ═══ Model Detail Card Data ═══
 var detailData = {
@@ -820,6 +799,10 @@ function switchModel(key, el){
   var d = detailData[key];
   if(!d) return;
 
+  currentDetail = {code:d.stockCode, name:d.stockName, score:d.stockScore};
+  var footerModel = document.getElementById('footerModel');
+  if(footerModel) footerModel.textContent = modelNames[key] || d.title;
+
   // Title
   document.getElementById('detailTitle').innerHTML = d.title +
     '<span class="stock-meta">' +
@@ -860,37 +843,62 @@ function switchModel(key, el){
   body.appendChild(actions);
 }
 
-// ═══ Row Selection ═══
-function selectRow(row, idx){
+// ═══ Row Selection（直接从行内 DOM 读取，避免索引错位）═══
+function selectRow(row){
   document.querySelectorAll('.wb-tr').forEach(function(r){ r.classList.remove('selected'); });
   row.classList.add('selected');
   updateBatchCount();
 
-  // Update detail card stock info for current model
-  var codes = ['300750','002594','688981','603986','601012','600519','300274','688111','002415','000858'];
-  var names = ['宁德时代','比亚迪','中芯国际','兆易创新','隆基绿能','贵州茅台','阳光电源','金山办公','海康威视','五粮液'];
-  var scores = ['92.5','88.3','85.0','78.1','76.4','74.2','72.8','69.5','67.1','64.3'];
-  var colors = ['var(--up)','var(--up)','var(--up)','var(--warn)','var(--warn)','var(--warn)','var(--accent)','var(--accent)','var(--accent)','var(--fg-2)'];
+  var code = row.querySelector('.wb-code').textContent.trim();
+  var name = row.querySelector('.wb-name').textContent.trim();
+  var scoreEl = row.querySelector('.wb-score');
+  var score = scoreEl.textContent.trim();
+  var color = scoreEl.style.color || 'var(--fg)';
+  currentDetail = {code:code, name:name, score:score};
 
   var d = detailData[currentModel];
   if(!d) return;
-  d.stockCode = codes[idx];
-  d.stockName = names[idx];
-  d.stockScore = scores[idx];
-  d.stockScoreColor = colors[idx];
 
-  // Re-render detail card
+  // Re-render detail card title
   document.getElementById('detailTitle').innerHTML = d.title +
     '<span class="stock-meta">' +
-    '<span class="mono" style="color:var(--accent)">' + d.stockCode + '</span>' +
-    '<span>' + d.stockName + '</span>' +
-    '<span class="mono" style="color:' + d.stockScoreColor + ';font-weight:720">' + d.stockScore + '</span>' +
+    '<span class="mono" style="color:var(--accent)">' + code + '</span>' +
+    '<span>' + name + '</span>' +
+    '<span class="mono" style="color:' + color + ';font-weight:720">' + score + '</span>' +
     '</span>';
 }
 
-// ═══ Batch Selection ═══
+// ═══ Board Filter（板块筛选：按代码前缀真实过滤行）═══
+function boardOf(code){
+  if(/^688/.test(code)) return 'kcb';
+  if(/^30[01]/.test(code)) return 'cyb';
+  return 'main';
+}
+
+function setBoardFilter(filter, btn){
+  boardFilter = filter;
+  document.querySelectorAll('.param-bar .filter-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  applyBoardFilter();
+}
+
+function applyBoardFilter(){
+  var visible = 0;
+  document.querySelectorAll('.wb-tr').forEach(function(r){
+    var code = r.querySelector('.wb-code').textContent.trim();
+    var show = !boardFilter || boardOf(code) === boardFilter;
+    r.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  document.getElementById('wbEmpty').hidden = visible > 0;
+  var fc = document.getElementById('footerCount');
+  if(fc) fc.textContent = visible;
+}
+
+// ═══ Batch Selection（全选只作用于当前可见行）═══
 function selectAllRows(){
   document.querySelectorAll('.wb-tr').forEach(function(r){
+    if(r.style.display === 'none') return;
     r.setAttribute('data-sel','true');
     var cb = r.querySelector('.wb-cb');
     var cd = r.querySelector('.wb-code');
@@ -921,23 +929,117 @@ function runScreener(){
   var overlay = document.getElementById('loadingOverlay');
   var text = document.getElementById('loadingText');
 
-  var modelNames = {
-    bi_trend: '毕师傅趋势启动 V13',
-    leader_scalp: '秋神盘后龙头',
-    short: '匪爷短线',
-    bi_full: '毕师傅全市场 V1.0',
-    long: '长线价值',
-    all: '综合多因子',
-    chokepoint: '大葱卡脖子',
-    cb_floor: '底价选债'
-  };
-
   text.textContent = '正在运行 ' + (modelNames[currentModel] || '') + '，请稍候…';
   overlay.classList.add('show');
 
   setTimeout(function(){
     overlay.classList.remove('show');
+    applyBoardFilter();
+    var visible = document.querySelectorAll('.wb-tr:not([style*="none"])').length;
+    if(window.suyingToast) suyingToast('选股完成：' + (modelNames[currentModel] || '') + ' 命中 ' + visible + ' 只', 'ok');
   }, 1800);
+}
+
+// ═══ Batch Actions：候选池 / 自选 / 导出 ═══
+function collectSelectedPicks(){
+  var picks = [];
+  document.querySelectorAll('.wb-tr[data-sel="true"]').forEach(function(r){
+    if(r.style.display === 'none') return;
+    var gradeEl = r.querySelector('.grade-tag');
+    picks.push({
+      code: r.querySelector('.wb-code').textContent.trim(),
+      name: r.querySelector('.wb-name').textContent.trim(),
+      score: r.querySelector('.wb-score').textContent.trim(),
+      grade: gradeEl ? gradeEl.textContent.trim() : '',
+      industry: r.querySelector('.wb-industry').textContent.trim()
+    });
+  });
+  return picks;
+}
+
+function mergeIntoStorage(key, items){
+  var list = [];
+  try{ list = JSON.parse(localStorage.getItem(key) || '[]'); }catch(e){ list = []; }
+  // 统一 schema: [{code, name, src, date, ...}]，兼容历史字符串元素
+  list = list.map(function(e){ return typeof e === 'string' ? {code:e, name:'', src:'', date:''} : e; }).filter(function(e){ return e && e.code; });
+  items.forEach(function(p){
+    var idx = -1;
+    for(var i = 0; i < list.length; i++){ if(list[i].code === p.code){ idx = i; break; } }
+    if(idx >= 0) list[idx] = p; else list.push(p);
+  });
+  localStorage.setItem(key, JSON.stringify(list));
+}
+
+function addBatchToPool(){
+  var picks = collectSelectedPicks();
+  if(!picks.length){
+    if(window.suyingToast) suyingToast('请先勾选要加入候选池的股票', 'warn');
+    return;
+  }
+  picks.forEach(function(p){ p.source = 'screener'; p.src = 'screener'; p.model = modelNames[currentModel] || currentModel; p.date = '2026-06-26'; });
+  mergeIntoStorage('suying_mock_candidate_pool', picks);
+  if(window.suyingToast) suyingToast('已添加 ' + picks.length + ' 只到候选池', 'ok');
+}
+
+function addBatchToWatchlist(){
+  var picks = collectSelectedPicks();
+  if(!picks.length){
+    if(window.suyingToast) suyingToast('请先勾选要加入自选的股票', 'warn');
+    return;
+  }
+  picks.forEach(function(p){ p.source = 'screener'; p.src = 'screener'; p.date = '2026-06-26'; });
+  mergeIntoStorage('suying_mock_watchlist', picks);
+  if(window.suyingToast) suyingToast('已添加 ' + picks.length + ' 只到自选', 'ok');
+}
+
+function addDetailToPool(){
+  var pick = {
+    code: currentDetail.code, name: currentDetail.name, score: currentDetail.score,
+    grade: '', industry: '', source: 'screener', src: 'screener',
+    model: modelNames[currentModel] || currentModel, date: '2026-06-26'
+  };
+  mergeIntoStorage('suying_mock_candidate_pool', [pick]);
+  if(window.suyingToast) suyingToast('已将 ' + pick.name + '(' + pick.code + ') 加入候选池', 'ok');
+}
+
+function exportCSV(){
+  var rows = [];
+  document.querySelectorAll('.wb-tr').forEach(function(r){
+    if(r.style.display === 'none') return;
+    var gradeEl = r.querySelector('.grade-tag');
+    rows.push([
+      r.querySelector('.wb-code').textContent.trim(),
+      r.querySelector('.wb-name').textContent.trim(),
+      r.querySelector('.wb-score').textContent.trim(),
+      gradeEl ? gradeEl.textContent.trim() : '',
+      r.querySelector('.wb-industry').textContent.trim(),
+      r.querySelector('.wb-mcap').textContent.trim()
+    ]);
+  });
+  if(!rows.length){
+    if(window.suyingToast) suyingToast('当前筛选条件下暂无可导出的结果', 'warn');
+    return;
+  }
+  var csv = '代码,名称,评分,等级,行业,市值(亿)\n';
+  rows.forEach(function(r){ csv += r.join(',') + '\n'; });
+  var blob = new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'screener_' + currentModel + '_2026-06-26.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  if(window.suyingToast) suyingToast('已导出 ' + rows.length + ' 行 CSV', 'ok');
+}
+
+// ═══ 跨页跳转 ═══
+function goBacktest(){
+  location.href = '11.1 backtest-run-preview.html?code=' + encodeURIComponent(currentDetail.code) + '&name=' + encodeURIComponent(currentDetail.name);
+}
+
+function goDiagnosis(){
+  location.href = '12.0 diagnosis-preview.html?code=' + encodeURIComponent(currentDetail.code) + '&name=' + encodeURIComponent(currentDetail.name);
 }
 
 // ═══ Init ═══

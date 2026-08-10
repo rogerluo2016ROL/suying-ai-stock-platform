@@ -3,45 +3,10 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:," />
 <title>速赢AI · 准确率回测</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="assets/echarts.min.js"></script>
 <style class="legacy-page-style">
-:root{
-  --bg:#0b0e14; --surface:#11161f; --surface-2:#161c28; --elevated:#1b2330;
-  --border:#1f2733; --border-2:#2a3444;
-  --fg:#e8edf4; --fg-2:#9aa7b8; --muted:#5e6a7d;
-  --accent:#3d8bff; --accent-dim:rgba(61,139,255,0.14);
-  --up:#ff4d4f; --up-bg:rgba(255,77,79,0.12);
-  --down:#2ec27e; --down-bg:rgba(46,194,126,0.12);
-  --warn:#f5a623; --warn-bg:rgba(245,166,35,0.12);
-  --font-sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",Roboto,sans-serif;
-  --font-mono:"SF Mono","JetBrains Mono","IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
-  --sidebar-w:232px; --header-h:52px; --radius:8px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:13.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
-.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:3px}
-
-.app{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);position:fixed;inset:0 auto 0 0;z-index:40;display:flex;flex-direction:column}
-.brand{height:var(--header-h);display:flex;align-items:center;gap:11px;padding:0 18px;border-bottom:1px solid var(--border);flex-shrink:0}
-.brand .logo{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#7db2ff);display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
-.brand .name{font-weight:680;font-size:15px}
-.brand .name b{color:var(--accent)}
-.nav{flex:1;overflow-y:auto;padding:10px}
-.nav-group{font-size:10.5px;letter-spacing:.14em;color:var(--muted);padding:14px 12px 7px;font-weight:650}
-.nav-item{display:flex;align-items:center;gap:11px;padding:8px 12px;margin:1px 0;border-radius:6px;color:var(--fg-2);cursor:pointer;font-size:13.5px;font-weight:500;position:relative;transition:.12s}
-.nav-item:hover{background:var(--elevated);color:var(--fg)}
-.nav-item.active{background:var(--accent-dim);color:var(--accent)}
-.nav-item.active::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
-.main{flex:1;margin-left:var(--sidebar-w);min-width:0}
-.header{height:var(--header-h);position:sticky;top:0;z-index:30;background:rgba(17,22,31,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px}
-.content{padding:16px 20px 28px}
-
 /* Quick Select Bar */
 .qsb{display:flex;flex-direction:column;gap:5px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px}
 .qsb .r{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -131,34 +96,34 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <div class="qsc"><span class="n">中国平安</span><span class="c">601318</span></div>
                       <div class="qsc"><span class="n">五粮液</span><span class="c">000858</span></div>
                       <div class="qsc"><span class="n">阳光电源</span><span class="c">300274</span></div>
-                      <input type="text" placeholder="🔍 搜索代码/名称...">
+                      <input type="text" id="qsb-search" placeholder="🔍 搜索代码/名称...">
                     </div>
                   </div>
 <!-- Chart: Predicted vs Actual -->
                   <div class="pcw" style="margin-bottom:0">
-                    <div class="psc-h">📈 预测路径 vs 实际走势 · 300750 宁德时代 · 偏离区间范围</div>
+                    <div class="psc-h" id="bt-title">📈 预测路径 vs 实际走势 · 300750 宁德时代 · 偏离区间范围</div>
                     <div class="ch" id="chart-backtest" style="height:400px"></div>
                   </div>
             
                   <!-- Accuracy Stats Grid -->
                   <div class="ast">
                     <div class="asi">
-                      <div class="v neu">72%</div>
+                      <div class="v neu" id="st-acc">72%</div>
                       <div class="l">方向正确率</div>
-                      <div class="sub">近30次统计</div>
+                      <div class="sub" id="st-acc-sub">近30次统计</div>
                     </div>
                     <div class="asi">
-                      <div class="v" style="color:var(--warn)">±6.5%</div>
+                      <div class="v" style="color:var(--warn)" id="st-avg">±6.5%</div>
                       <div class="l">平均误差</div>
                       <div class="sub">相对实际涨跌幅</div>
                     </div>
                     <div class="asi">
-                      <div class="v" style="color:var(--up)">18.2%</div>
+                      <div class="v" style="color:var(--up)" id="st-max">18.2%</div>
                       <div class="l">最大误差</div>
                       <div class="sub">单次最大偏离</div>
                     </div>
                     <div class="asi">
-                      <div class="v neu">7次</div>
+                      <div class="v neu" id="st-streak">7次</div>
                       <div class="l">最长连对</div>
                       <div class="sub">连续正确预测</div>
                     </div>
@@ -167,7 +132,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                   <!-- Recent Prediction Sequence -->
                   <div class="seq-bar">
                     <span class="slbl">最近10次:</span>
-                    <div class="seq-row">
+                    <div class="seq-row" id="seq-row">
                       <span class="sq yes">✅</span>
                       <span class="sq yes">✅</span>
                       <span class="sq yes">✅</span>
@@ -179,7 +144,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
                       <span class="sq yes">✅</span>
                       <span class="sq no">❌</span>
                     </div>
-                    <span style="font-size:11px;color:var(--fg-2);margin-left:12px;font-family:var(--font-mono)">8/10 正确</span>
+                    <span style="font-size:11px;color:var(--fg-2);margin-left:12px;font-family:var(--font-mono)" id="seq-count">8/10 正确</span>
                   </div>
             
                   <!-- Time Range Selector -->
@@ -200,64 +165,156 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size
 <script src="assets/shell.js"></script>
 <script>
 (function(){
-var _seed=99
-function rnd(){_seed=(_seed*16807+0)%2147483647;return(_seed-1)/2147483646}
-function rndRange(a,b){return a+rnd()*(b-a)}
-
-// Generate backtest data: predicted path vs actual
-var backtestDates=[]
-for(var i=0;i<30;i++)backtestDates.push('05-'+(i+1<10?'0'+(i+1):i+1))
-
-var predPath=[],actPath=[],devLow=[],devHigh=[]
-var baseP=195
-for(var i=0;i<30;i++){
-  var drift=(i/30)*23+rndRange(-1.5,1.5)
-  predPath.push(Math.round((baseP+drift)*100)/100)
-  var actDrift=(i/30)*18+rndRange(-3,3)
-  actPath.push(Math.round((baseP+actDrift)*100)/100)
-  devLow.push(Math.round(predPath[i]*0.9*100)/100)
-  devHigh.push(Math.round((predPath[i]*1.1-predPath[i]*0.9)*100)/100)
+/* Mock 标的库：快选条 / 搜索共用 */
+var STOCK_DB={
+  '300750':{name:'宁德时代',seed:99,base:195},
+  '688981':{name:'中芯国际',seed:131,base:62},
+  '600519':{name:'贵州茅台',seed:57,base:1520},
+  '002594':{name:'比亚迪',seed:73,base:95},
+  '603986':{name:'兆易创新',seed:41,base:140},
+  '002371':{name:'北方华创',seed:167,base:360},
+  '601012':{name:'隆基绿能',seed:83,base:31},
+  '601318':{name:'中国平安',seed:29,base:49},
+  '000858':{name:'五粮液',seed:113,base:138},
+  '300274':{name:'阳光电源',seed:199,base:82}
 }
 
-var chartBacktest=echarts.init(document.getElementById('chart-backtest'))
-var option={
-  backgroundColor:'transparent',
-  tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
-  grid:{left:'8%',right:'6%',top:'10%',bottom:'12%'},
-  xAxis:{type:'category',data:backtestDates,axisLabel:{fontSize:10,color:'#5e6a7d'},axisLine:{lineStyle:{color:'#1f2733'}}},
-  yAxis:{type:'value',scale:true,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:10,color:'#5e6a7d'}},
-  legend:{data:['预测路径','实际走势'],bottom:0,textStyle:{color:'#9aa7b8',fontSize:11}},
-  series:[
-    {name:'band-lower',type:'line',data:devLow,lineStyle:{opacity:0},symbol:'none',stack:'dev',areaStyle:{opacity:0},silent:true,animation:false},
-    {name:'band-upper',type:'line',data:devHigh,lineStyle:{opacity:0},symbol:'none',stack:'dev',areaStyle:{color:'rgba(61,139,255,0.06)'},silent:true,animation:false},
-    {name:'预测路径',type:'line',data:predPath,lineStyle:{color:'#3d8bff',type:'dashed',width:2.5},symbol:'none',emphasis:{focus:'series'}},
-    {name:'实际走势',type:'line',data:actPath,lineStyle:{color:'#e8edf4',width:2.5},symbol:'none',emphasis:{focus:'series'},
-      markLine:{silent:true,symbol:'none',animation:false,data:[{label:{formatter:'区间上限',color:'#5e6a7d',fontSize:9},lineStyle:{color:'rgba(61,139,255,0.3)',type:'dashed',width:1},yAxis:Math.round(Math.max.apply(null,predPath)*1.05*100)/100}]}
-    }
-  ]
+/* 各回测范围的统计口径（mock） */
+var RANGE_STATS={
+  30:{acc:'72%',avg:'±6.5%',max:'18.2%',streak:'7次'},
+  60:{acc:'69%',avg:'±7.1%',max:'19.5%',streak:'7次'},
+  120:{acc:'66%',avg:'±7.8%',max:'21.3%',streak:'9次'}
 }
-chartBacktest.setOption(option)
 
-// Time range switch
+var state={code:'300750',range:30}
+
+function makeRnd(seed){var s=seed;return function(){s=(s*16807+0)%2147483647;return(s-1)/2147483646}}
+
+/* 生成 120 个点：预测路径 vs 实际走势 + 偏离带（取最后 N 个用于范围切换） */
+var fullDates=[],fullPred=[],fullAct=[],fullDevLow=[],fullDevHigh=[]
+function genBacktest(seed,base){
+  var rnd=makeRnd(seed)
+  function rr(a,b){return a+rnd()*(b-a)}
+  fullDates=[];fullPred=[];fullAct=[];fullDevLow=[];fullDevHigh=[]
+  for(var i=0;i<120;i++){
+    var d=new Date(2026,1,27+i)
+    fullDates.push((d.getMonth()+1)+'/'+d.getDate())
+    var drift=(i/120)*23+rr(-1.5,1.5)
+    fullPred.push(Math.round((base+drift)*100)/100)
+    var actDrift=(i/120)*18+rr(-3,3)
+    fullAct.push(Math.round((base+actDrift)*100)/100)
+    fullDevLow.push(Math.round(fullPred[i]*0.9*100)/100)
+    fullDevHigh.push(Math.round((fullPred[i]*1.1-fullPred[i]*0.9)*100)/100)
+  }
+}
+
+var chartBacktest=echarts.init(document.getElementById('chart-backtest'), (window.suyingEchartsTheme?suyingEchartsTheme():'dark'))
+
+function sliceOf(arr,n){return arr.slice(arr.length-n)}
+
+function renderChart(){
+  var n=state.range
+  var pred=sliceOf(fullPred,n)
+  var option={
+    backgroundColor:'transparent',
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+    grid:{left:'8%',right:'6%',top:'10%',bottom:'12%'},
+    xAxis:{type:'category',data:sliceOf(fullDates,n),axisLabel:{fontSize:10,color:'#5e6a7d'},axisLine:{lineStyle:{color:'#1f2733'}}},
+    yAxis:{type:'value',scale:true,splitLine:{lineStyle:{color:'#1f2733'}},axisLabel:{fontSize:10,color:'#5e6a7d'}},
+    legend:{data:['预测路径','实际走势'],bottom:0,textStyle:{color:'#9aa7b8',fontSize:11}},
+    series:[
+      {name:'band-lower',type:'line',data:sliceOf(fullDevLow,n),lineStyle:{opacity:0},symbol:'none',stack:'dev',areaStyle:{opacity:0},silent:true,animation:false},
+      {name:'band-upper',type:'line',data:sliceOf(fullDevHigh,n),lineStyle:{opacity:0},symbol:'none',stack:'dev',areaStyle:{color:'rgba(61,139,255,0.06)'},silent:true,animation:false},
+      {name:'预测路径',type:'line',data:pred,lineStyle:{color:'#3d8bff',type:'dashed',width:2.5},symbol:'none',emphasis:{focus:'series'}},
+      {name:'实际走势',type:'line',data:sliceOf(fullAct,n),lineStyle:{color:'#e8edf4',width:2.5},symbol:'none',emphasis:{focus:'series'},
+        markLine:{silent:true,symbol:'none',animation:false,data:[{label:{formatter:'区间上限',color:'#5e6a7d',fontSize:9},lineStyle:{color:'rgba(61,139,255,0.3)',type:'dashed',width:1},yAxis:Math.round(Math.max.apply(null,pred)*1.05*100)/100}]}
+      }
+    ]
+  }
+  chartBacktest.setOption(option,true)
+}
+
+function renderStats(){
+  var st=RANGE_STATS[state.range]
+  document.getElementById('st-acc').textContent=st.acc
+  document.getElementById('st-acc-sub').textContent='近'+state.range+'次统计'
+  document.getElementById('st-avg').textContent=st.avg
+  document.getElementById('st-max').textContent=st.max
+  document.getElementById('st-streak').textContent=st.streak
+}
+
+/* 最近10次对错序列：随标的确定性重算 */
+function renderSeq(){
+  var rnd=makeRnd(STOCK_DB[state.code].seed+7)
+  var hits=0,html=''
+  for(var i=0;i<10;i++){
+    var ok=rnd()>0.22
+    if(ok)hits++
+    html+='<span class="sq '+(ok?'yes':'no')+'">'+(ok?'✅':'❌')+'</span>'
+  }
+  document.getElementById('seq-row').innerHTML=html
+  document.getElementById('seq-count').textContent=hits+'/10 正确'
+}
+
+function loadStock(code){
+  var s=STOCK_DB[code]
+  if(!s)return
+  state.code=code
+  document.getElementById('bt-title').textContent='📈 预测路径 vs 实际走势 · '+code+' '+s.name+' · 偏离区间范围'
+  document.querySelectorAll('.qsc').forEach(function(c){
+    var codeEl=c.querySelector('.c')
+    c.classList.toggle('active',!!codeEl&&codeEl.textContent.trim()===code)
+  })
+  genBacktest(s.seed,s.base)
+  renderChart()
+  renderStats()
+  renderSeq()
+}
+
+// Time range switch：真实切换数据窗口 + 统计口径
 function switchRange(n,btn){
+  state.range=n
   document.querySelectorAll('.trs button').forEach(function(b){b.classList.remove('on')})
   btn.classList.add('on')
-  var d=option.xAxis[0].data
-  var start=Math.max(0,d.length-n)
-  chartBacktest.dispatchAction({type:'dataZoom',startValue:start,endValue:d.length-1})
+  renderChart()
+  renderStats()
+  if(window.suyingToast)suyingToast('回测范围已切换为近'+n+'次','info')
 }
 
 // Quick select
 document.querySelectorAll('.qsc').forEach(function(chip){
   chip.addEventListener('click',function(){
-    document.querySelectorAll('.qsc').forEach(function(c){c.classList.remove('active')})
-    chip.classList.add('active')
+    var codeEl=chip.querySelector('.c')
+    if(codeEl)loadStock(codeEl.textContent.trim())
   })
 })
+
+/* 搜索框：回车按代码/名称匹配 */
+var searchInput=document.getElementById('qsb-search')
+if(searchInput){
+  searchInput.addEventListener('keydown',function(e){
+    if(e.key!=='Enter')return
+    var q=searchInput.value.trim()
+    if(!q)return
+    var hit=Object.keys(STOCK_DB).find(function(code){
+      return code===q||STOCK_DB[code].name===q||STOCK_DB[code].name.indexOf(q)>=0||code.indexOf(q)===0
+    })
+    if(hit){
+      loadStock(hit)
+      searchInput.value=''
+      searchInput.blur()
+      if(window.suyingToast)suyingToast('已切换到 '+STOCK_DB[hit].name+' '+hit,'ok')
+    }else if(window.suyingToast){
+      suyingToast('未找到标的「'+q+'」，请检查代码/名称','warn')
+    }
+  })
+}
 
 window.switchRange=switchRange
 window.addEventListener('resize',function(){chartBacktest.resize()})
 setTimeout(function(){chartBacktest.resize()},200)
+
+loadStock('300750')
 })()
 </script>
 <script src="assets/preview-interactions.js"></script>

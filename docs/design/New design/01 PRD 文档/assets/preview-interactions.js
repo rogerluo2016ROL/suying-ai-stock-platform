@@ -2,6 +2,8 @@
 (function(){
   function toast(message, type){
     if(!message) return;
+    // 类型归一：页面历史代码传 'success'，统一直到 'ok'
+    if(type === 'success') type = 'ok';
     let node = document.getElementById('toast') || document.getElementById('shellToast');
     if(!node){
       node = document.createElement('div');
@@ -38,7 +40,7 @@
     }
 
     const staticAction = event.target.closest('button:not([disabled]), .chip, .sector-cell, .pos-row, .ord-row');
-    if(staticAction && !action && !staticAction.closest('.module-tabs') && !staticAction.getAttribute('onclick')){
+    if(staticAction && !action && !staticAction.closest('.module-tabs') && !staticAction.closest('.dlg-mask') && !staticAction.getAttribute('onclick')){
       if(staticAction.classList.contains('chip')) staticAction.classList.toggle('active');
       const label = staticAction.textContent.trim().replace(/\s+/g,' ').slice(0,28);
       if(label && !staticAction.closest('.seg')) toast(label + ' 已更新预览状态', 'info');
@@ -75,4 +77,39 @@
       });
     });
   }
+
+  /* 共享确认弹窗：替代原生 confirm()/alert()。用法：
+     suyingConfirm('确认一键清仓？', ()=>{ ... }, {title:'高危操作', okText:'确认清仓', danger:true}); */
+  function confirmDialog(message, onOk, opts){
+    opts = opts || {};
+    const mask = document.createElement('div');
+    mask.className = 'dlg-mask';
+    mask.innerHTML =
+      '<div class="dlg" role="dialog" aria-modal="true">' +
+        '<div class="dlg-title"></div>' +
+        '<div class="dlg-body"></div>' +
+        '<div class="dlg-ops"><button class="btn dlg-cancel">取消</button>' +
+        '<button class="btn dlg-ok"></button></div>' +
+      '</div>';
+    mask.querySelector('.dlg-title').textContent = opts.title || '操作确认';
+    mask.querySelector('.dlg-body').textContent = message;
+    const okBtn = mask.querySelector('.dlg-ok');
+    okBtn.textContent = opts.okText || '确认';
+    if(opts.danger) okBtn.classList.add('danger'); else okBtn.classList.add('primary');
+    function close(){ mask.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(e){ if(e.key === 'Escape') close(); }
+    mask.querySelector('.dlg-cancel').addEventListener('click', close);
+    mask.addEventListener('click', (e)=>{ if(e.target === mask) close(); });
+    okBtn.addEventListener('click', ()=>{ close(); if(typeof onOk === 'function') onOk(); });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(mask);
+    okBtn.focus();
+  }
+  window.suyingConfirm = confirmDialog;
+
+  /* ECharts 主题助手：跟随 shell 的 data-theme（默认 dark）。
+     页面初始化图表请用 echarts.init(dom, suyingEchartsTheme())，option 内禁止写 var(--xx)。 */
+  window.suyingEchartsTheme = function(){
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  };
 })();

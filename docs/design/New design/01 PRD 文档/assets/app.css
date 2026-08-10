@@ -27,7 +27,7 @@ html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);font-size:14px;line-height:1.5;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
-.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)}
+.up{color:var(--up)} .down{color:var(--down)} .neu{color:var(--accent)} .warn{color:var(--warn)}
 a{color:var(--accent);text-decoration:none}
 button,a,input,select,textarea{font:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}

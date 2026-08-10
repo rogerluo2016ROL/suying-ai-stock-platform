@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
-import api from '../api/client'
+import { FundOutlined, RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { Modal } from 'antd'
+import ReactECharts from 'echarts-for-react'
+import { strategyApi } from '../api/client'
 import { P0WorkflowNav } from '../components/layout'
 import {
   DataDomainBadge,
@@ -17,6 +19,19 @@ import {
   SideRail,
 } from '../components/prototype'
 
+interface PositionRules {
+  max_positions?: number
+  single_max_pct?: number
+  total_position_cap_pct?: number
+}
+
+interface RiskRules {
+  daily_max_loss_pct?: number
+  stop_loss_pct?: number
+  take_profit_pct?: number
+  trailing_stop_pct?: number
+}
+
 interface AutoStrategy {
   id: string
   name: string
@@ -24,6 +39,11 @@ interface AutoStrategy {
   trade_mode?: string
   capital?: number
   picks_count?: number
+  picks?: unknown[]
+  position_rules?: PositionRules
+  risk_rules?: RiskRules
+  created_at?: string
+  updated_at?: string
 }
 
 interface AutoLog {
@@ -32,6 +52,26 @@ interface AutoLog {
   message?: string
   details?: Record<string, string | number | undefined>
 }
+
+/** 策略模板：兼容后端 /strategy/templates 基础字段与设计稿扩展字段（收益率/回撤为可选 mock 字段）。 */
+interface MarketTemplate {
+  id: string
+  name: string
+  description?: string
+  model_name?: string
+  risk_level?: string
+  risk?: string
+  max_positions?: number
+  single_max?: number
+  stop_loss_pct?: number
+  target_return_pct?: number
+  holding_days?: number
+  capital?: number
+  annual_return?: number
+  max_drawdown?: number
+}
+
+type TemplateSort = 'default' | 'return' | 'drawdown'
 
 const tabs = [
   { key: 'market', path: '/auto-trade', label: '策略广场', subLabel: '模板选择' },
@@ -47,6 +87,14 @@ function activeKey(pathname: string) {
   return 'market'
 }
 
+function templateTypeOf(template: MarketTemplate) {
+  return template.model_name || template.risk_level || template.risk || '未分类'
+}
+
+function formatPct(value?: number) {
+  return value == null ? '--' : `${(value * 100).toFixed(1)}%`
+}
+
 export default function AutoTrade() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -58,9 +106,25 @@ export default function AutoTrade() {
   const [loadError, setLoadError] = useState('')
   const [logError, setLogError] = useState('')
   const [actionMessage, setActionMessage] = useState('')
+  // ── 策略广场（模板市场）──
+  const [templates, setTemplates] = useState<MarketTemplate[]>([])
+  const [templatesError, setTemplatesError] = useState('')
+  const [templateFilter, setTemplateFilter] = useState('all')
+  const [templateSort, setTemplateSort] = useState<TemplateSort>('default')
+  const [followTarget, setFollowTarget] = useState<MarketTemplate | null>(null)
+  const [followName, setFollowName] = useState('')
+  const [followCapital, setFollowCapital] = useState(1_000_000)
+  const [followMaxPositions, setFollowMaxPositions] = useState(5)
+  const [followSaving, setFollowSaving] = useState(false)
+  // ── 策略配置（参数编辑）──
+  const [editCapital, setEditCapital] = useState(1_000_000)
+  const [editMaxPositions, setEditMaxPositions] = useState(5)
+  const [configSaving, setConfigSaving] = useState(false)
+  // ── 策略日志（级别筛选）──
+  const [logLevelFilter, setLogLevelFilter] = useState('ALL')
 
   useEffect(() => {
-    api.get('/strategy/list')
+    strategyApi.listInstances()
       .then(response => {
         const nextStrategies = (response.data as any)?.strategies || []
         setStrategies(nextStrategies)
@@ -74,15 +138,28 @@ export default function AutoTrade() {
       })
   }, [])
 
-  const openDetail = async (strategy: AutoStrategy) => {
-    setSelectedStrategy(strategy)
-    setActionMessage('')
-    setLogError('')
-    const detailResponse = await api.get(`/strategy/${strategy.id}`).catch(() => null)
-    if (detailResponse?.data) {
-      setSelectedStrategy({ ...strategy, ...(detailResponse.data as AutoStrategy) })
-    }
-    const logResponse = await api.get(`/strategy/${strategy.id}/log`).catch(() => null)
+  useEffect(() => {
+    if (active !== 'market') return
+    strategyApi.getTemplates()
+      .then(response => {
+        setTemplates((response.data as any)?.templates || [])
+        setTemplatesError('')
+      })
+      .catch(() => {
+        setTemplates([])
+        setTemplatesError('策略模板接口连接异常')
+      })
+  }, [active])
+
+  useEffect(() => {
+    setEditCapital(selectedStrategy?.capital ?? 1_000_000)
+    setEditMaxPositions(selectedStrategy?.position_rules?.max_positions ?? 5)
+    // 仅在切换策略时回填表单，避免详情刷新覆盖未保存输入
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStrategy?.id])
+
+  const loadLogs = async (strategyId: string) => {
+    const logResponse = await strategyApi.getInstanceLog(strategyId).catch(() => null)
     if (logResponse?.data) {
       setLogs((logResponse.data as any)?.logs || [])
       setLogError('')
@@ -92,10 +169,33 @@ export default function AutoTrade() {
     }
   }
 
+  useEffect(() => {
+    if (active === 'logs' && selectedStrategy) {
+      setLogLevelFilter('ALL')
+      void loadLogs(selectedStrategy.id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, selectedStrategy?.id])
+
+  const openDetail = async (strategy: AutoStrategy) => {
+    setSelectedStrategy(strategy)
+    setActionMessage('')
+    setLogError('')
+    const detailResponse = await strategyApi.getInstance(strategy.id).catch(() => null)
+    if (detailResponse?.data) {
+      setSelectedStrategy({ ...strategy, ...(detailResponse.data as AutoStrategy) })
+    }
+    await loadLogs(strategy.id)
+  }
+
   const runAction = async (strategy: AutoStrategy, action: 'start' | 'pause' | 'resume' | 'stop') => {
     setActionMessage('')
-    const suffix = action === 'start' ? 'start?mode=paper' : action
-    const response = await api.post(`/strategy/${strategy.id}/${suffix}`).catch((error: any) => {
+    const call =
+      action === 'start' ? strategyApi.startInstance(strategy.id) :
+      action === 'pause' ? strategyApi.pauseInstance(strategy.id) :
+      action === 'resume' ? strategyApi.resumeInstance(strategy.id) :
+      strategyApi.stopInstance(strategy.id)
+    const response = await call.catch((error: any) => {
       setActionMessage(error?.response?.data?.detail || `${action} 接口连接异常`)
       return null
     })
@@ -104,6 +204,55 @@ export default function AutoTrade() {
     setActionMessage((response.data as any).message || `${action} 已提交`)
     setStrategies(current => current.map(item => item.id === strategy.id ? { ...item, status } : item))
     setSelectedStrategy(current => current?.id === strategy.id ? { ...current, status } : current)
+  }
+
+  // ── 一键跟单：模板 → 创建方案 ──
+  const openFollow = (template: MarketTemplate) => {
+    setFollowTarget(template)
+    setFollowName(`${template.name} 跟单`)
+    setFollowCapital(template.capital ?? 1_000_000)
+    setFollowMaxPositions(template.max_positions ?? 5)
+  }
+
+  const submitFollow = async () => {
+    if (!followTarget) return
+    setFollowSaving(true)
+    const planName = followName.trim() || `${followTarget.name} 跟单`
+    const response = await strategyApi
+      .createPlan(planName, followTarget.model_name || followTarget.id, followMaxPositions, followCapital)
+      .catch((error: any) => {
+        setActionMessage(error?.response?.data?.detail || '创建方案接口连接异常')
+        return null
+      })
+    setFollowSaving(false)
+    if (!response?.data) return
+    setActionMessage(`一键跟单成功，已创建方案：${(response.data as any).plan?.name || planName}`)
+    setFollowTarget(null)
+  }
+
+  // ── 参数编辑：PUT /strategy/{id}（position_rules 整体替换，合并现有仓位规则）──
+  const saveConfig = async () => {
+    if (!selectedStrategy) return
+    setConfigSaving(true)
+    const response = await strategyApi.updateInstance(selectedStrategy.id, {
+      capital: editCapital,
+      position_rules: {
+        max_positions: editMaxPositions,
+        single_max_pct: selectedStrategy.position_rules?.single_max_pct ?? 0.2,
+        total_position_cap_pct: selectedStrategy.position_rules?.total_position_cap_pct ?? 0.8,
+      },
+    }).catch((error: any) => {
+      setActionMessage(error?.response?.data?.detail || '更新策略接口连接异常')
+      return null
+    })
+    setConfigSaving(false)
+    if (!response?.data) return
+    const updated = (response.data as any).strategy as AutoStrategy | undefined
+    if (updated) {
+      setStrategies(current => current.map(item => item.id === updated.id ? { ...item, ...updated } : item))
+      setSelectedStrategy(current => current?.id === updated.id ? { ...current, ...updated } : current)
+    }
+    setActionMessage((response.data as any).message || '策略已更新')
   }
 
   const navigateRisk = (details: Record<string, string | number | undefined> = {}) => {
@@ -115,7 +264,82 @@ export default function AutoTrade() {
     if (details.code) params.set('code', String(details.code))
     navigate(`/trade/risk-verdicts?${params.toString()}`)
   }
-  const latestStrategyUpdate = logs[0]?.timestamp || (selectedStrategy as (AutoStrategy & { updated_at?: string; created_at?: string }) | null)?.updated_at || (selectedStrategy as (AutoStrategy & { updated_at?: string; created_at?: string }) | null)?.created_at
+
+  // ── 策略广场派生数据 ──
+  const templateTypes = useMemo(() => Array.from(new Set(templates.map(templateTypeOf))), [templates])
+  const visibleTemplates = useMemo(() => {
+    const filtered = templates.filter(template => templateFilter === 'all' || templateTypeOf(template) === templateFilter)
+    if (templateSort === 'default') return filtered
+    const key: 'annual_return' | 'max_drawdown' = templateSort === 'return' ? 'annual_return' : 'max_drawdown'
+    // 模板响应未携带收益率/回撤 mock 字段时保持基础顺序
+    if (!filtered.some(template => template[key] != null)) return filtered
+    return [...filtered].sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0))
+  }, [templates, templateFilter, templateSort])
+
+  // ── 策略监控派生数据（实例无收益字段，收益 KPI 跳过）──
+  const runningCount = strategies.filter(item => ['running', 'active'].includes(item.status || 'active')).length
+  const pausedCount = strategies.filter(item => item.status === 'paused').length
+  const todayKey = new Date().toISOString().slice(0, 10)
+  const todayTrades = logs.filter(log => (log.timestamp || '').startsWith(todayKey)).length
+
+  const equityOption = useMemo(() => {
+    const labels: string[] = []
+    const nav: number[] = []
+    let value = 1
+    const seedBase = (selectedStrategy?.id || 'strategy').length
+    const count = logs.length > 1 ? logs.length : 20
+    for (let index = 0; index < count; index += 1) {
+      value *= 1 + Math.sin((seedBase + index) * 1.7) * 0.015
+      nav.push(Number(value.toFixed(4)))
+      const timestamp = logs[index]?.timestamp
+      labels.push(timestamp ? String(timestamp).slice(5, 16) : `T${index + 1}`)
+    }
+    let peak = 0
+    const drawdown = nav.map(point => {
+      peak = Math.max(peak, point)
+      return Number((((point - peak) / peak) * 100).toFixed(2))
+    })
+    return {
+      grid: { left: 48, right: 48, top: 32, bottom: 26 },
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['净值', '回撤%'], top: 0, textStyle: { fontSize: 11 } },
+      xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 10 } },
+      yAxis: [
+        { type: 'value', scale: true, axisLabel: { fontSize: 10 } },
+        { type: 'value', scale: true, axisLabel: { fontSize: 10, formatter: '{value}%' } },
+      ],
+      series: [
+        { name: '净值', type: 'line', data: nav, smooth: true, showSymbol: false, lineStyle: { width: 2 } },
+        { name: '回撤%', type: 'line', yAxisIndex: 1, data: drawdown, smooth: true, showSymbol: false, areaStyle: { opacity: 0.15 }, lineStyle: { width: 1.5, type: 'dashed' } },
+      ],
+    }
+  }, [logs, selectedStrategy])
+
+  // ── 策略日志派生数据 ──
+  const logLevels = useMemo(
+    () => Array.from(new Set(logs.map(log => (log.level || 'INFO').toUpperCase()))),
+    [logs],
+  )
+  const visibleLogs = useMemo(
+    () => (logLevelFilter === 'ALL' ? logs : logs.filter(log => (log.level || 'INFO').toUpperCase() === logLevelFilter)),
+    [logs, logLevelFilter],
+  )
+
+  const renderLogItem = (log: AutoLog, index: number) => (
+    <div className="prototype-fallback" key={`${log.timestamp}-${index}`} style={{ marginBottom: 10 }}>
+      <div className="nm">{log.message}</div>
+      <div className="chips mt14">
+        {log.level && <span className="chip">{log.level}</span>}
+        {log.details?.decision_context_id && <span className="chip active">{log.details.decision_context_id}</span>}
+        {log.details?.plan_id && <span className="chip">{log.details.plan_id}</span>}
+        {log.details?.candidate_id && <span className="chip">{log.details.candidate_id}</span>}
+      </div>
+      <button type="button" className="btn sm mt14" onClick={() => navigateRisk(log.details)}>风控</button>
+    </div>
+  )
+
+  const latestStrategyUpdate = logs[0]?.timestamp || selectedStrategy?.updated_at || selectedStrategy?.created_at
+  const freshnessSource = active === 'market' ? 'strategy/templates' : active === 'logs' ? 'strategy/log' : 'strategy/list'
 
   return (
     <PrototypePage>
@@ -130,8 +354,8 @@ export default function AutoTrade() {
       />
       <PrototypePageHeader
         title={`量化交易 - ${activeTab.label}`}
-        subtitle="策略实例 · 参数配置 · 运行监控 · 执行日志"
-        dataFreshness={<DataFreshnessBar updatedAt={latestStrategyUpdate} source={active === 'logs' ? 'strategy/log' : 'strategy/list'} />}
+        subtitle="策略广场 · 参数配置 · 运行监控 · 执行日志"
+        dataFreshness={<DataFreshnessBar updatedAt={latestStrategyUpdate} source={freshnessSource} />}
         actions={[
           { key: 'paper', label: '模拟盘执行', active: true },
           { key: 'risk', label: '风控不可绕过', tone: 'warn' },
@@ -149,83 +373,292 @@ export default function AutoTrade() {
       {loadError && <RiskBanner status="warn" title="策略服务异常" detail={loadError} />}
       {actionMessage && <RiskBanner status="review" title="执行动作结果" detail={actionMessage} />}
 
-      {(active === 'market' || active === 'monitor' || active === 'logs') && (
-        <div className="row r-6-4">
-          <PrototypeCard title="自动交易策略" icon={<RobotOutlined />} meta="模拟盘执行">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>策略</th>
-                  <th>模式</th>
-                  <th>状态</th>
-                  <th className="r">候选</th>
-                  <th className="r">操作</th>
+      {active === 'market' && (
+        <PrototypeCard title="策略模板广场" icon={<FundOutlined />} meta="strategy/templates">
+          <div className="param-bar" style={{ marginBottom: 12 }}>
+            <span className="plabel">模型类型</span>
+            <select
+              className="param-select"
+              aria-label="模型类型筛选"
+              value={templateFilter}
+              onChange={event => setTemplateFilter(event.target.value)}
+            >
+              <option value="all">全部</option>
+              {templateTypes.map(type => <option key={type} value={type}>{type}</option>)}
+            </select>
+            <span className="psep" />
+            <span className="plabel">排序</span>
+            <select
+              className="param-select"
+              aria-label="模板排序"
+              value={templateSort}
+              onChange={event => setTemplateSort(event.target.value as TemplateSort)}
+            >
+              <option value="default">默认</option>
+              <option value="return">收益率</option>
+              <option value="drawdown">回撤</option>
+            </select>
+          </div>
+          {templatesError && <RiskBanner status="warn" title="模板服务异常" detail={templatesError} />}
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>模板</th>
+                <th>类型</th>
+                <th className="r">最大持仓</th>
+                <th className="r">单票上限</th>
+                <th className="r">止损</th>
+                <th className="r">目标收益</th>
+                <th className="r">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleTemplates.map(template => (
+                <tr key={template.id}>
+                  <td className="nm">
+                    {template.name}
+                    {template.description && <div className="prototype-panel-note">{template.description}</div>}
+                  </td>
+                  <td>{templateTypeOf(template)}</td>
+                  <td className="r mono">{template.max_positions ?? '--'}</td>
+                  <td className="r mono">{formatPct(template.single_max)}</td>
+                  <td className="r mono">{formatPct(template.stop_loss_pct)}</td>
+                  <td className="r mono">{formatPct(template.target_return_pct)}</td>
+                  <td className="r">
+                    <button type="button" className="btn sm" onClick={() => openFollow(template)}>一键跟单</button>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {strategies.map(strategy => (
-                  <tr key={strategy.id}>
-                    <td className="nm">{strategy.name}</td>
-                    <td>{strategy.trade_mode || 'paper'}</td>
-                    <td>{strategy.status || 'active'}</td>
-                    <td className="r mono">{strategy.picks_count ?? (strategy as any).picks?.length ?? 0}</td>
-                    <td className="r">
-                      <button type="button" className="btn sm" onClick={() => openDetail(strategy)}>详情</button>
-                      <button type="button" className="btn sm ghost" onClick={() => runAction(strategy, 'start')}>启动</button>
-                      <button type="button" className="btn sm ghost" onClick={() => runAction(strategy, 'stop')}>停止</button>
-                    </td>
+              ))}
+              {visibleTemplates.length === 0 && (
+                <tr><td colSpan={7} className="prototype-panel-note">暂无策略模板。</td></tr>
+              )}
+            </tbody>
+          </table>
+        </PrototypeCard>
+      )}
+
+      {active === 'monitor' && (
+        <>
+          <div className="kpis">
+            <MetricCard label="运行中" value={String(runningCount)} sub="strategy/list" tone="up" />
+            <MetricCard label="已暂停" value={String(pausedCount)} sub="strategy/list" tone="warn" />
+            <MetricCard label="今日交易笔数" value={String(todayTrades)} sub="strategy/log" tone="accent" />
+          </div>
+          <div className="row r-6-4">
+            <PrototypeCard title="自动交易策略" icon={<RobotOutlined />} meta="模拟盘执行">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>策略</th>
+                    <th>模式</th>
+                    <th>状态</th>
+                    <th className="r">候选</th>
+                    <th className="r">操作</th>
                   </tr>
-                ))}
-                {strategies.length === 0 && (
-                  <tr><td colSpan={5} className="prototype-panel-note">暂无自动交易策略。</td></tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {strategies.map(strategy => (
+                    <tr key={strategy.id}>
+                      <td className="nm">{strategy.name}</td>
+                      <td>{strategy.trade_mode || 'paper'}</td>
+                      <td>{strategy.status || 'active'}</td>
+                      <td className="r mono">{strategy.picks_count ?? strategy.picks?.length ?? 0}</td>
+                      <td className="r">
+                        <button type="button" className="btn sm" onClick={() => openDetail(strategy)}>详情</button>
+                        <button type="button" className="btn sm ghost" onClick={() => runAction(strategy, 'start')}>启动</button>
+                        <button type="button" className="btn sm ghost" onClick={() => runAction(strategy, 'stop')}>停止</button>
+                      </td>
+                    </tr>
+                  ))}
+                  {strategies.length === 0 && (
+                    <tr><td colSpan={5} className="prototype-panel-note">暂无自动交易策略。</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </PrototypeCard>
+            <PrototypeCard title="执行日志" icon={<SafetyCertificateOutlined />} meta="Lineage">
+              {logError && <RiskBanner status="warn" title="日志不可用" detail={logError} />}
+              {logs.length === 0 && !logError && <EmptyState title="暂无执行日志" detail="选择策略后读取 strategy/{id}/log。" />}
+              {logs.map(renderLogItem)}
+            </PrototypeCard>
+          </div>
+          <PrototypeCard title="净值 / 回撤" icon={<FundOutlined />} meta="示例数据 · 由执行日志推算">
+            <ReactECharts option={equityOption} style={{ height: 260, width: '100%' }} notMerge />
           </PrototypeCard>
-          <PrototypeCard title="执行日志" icon={<SafetyCertificateOutlined />} meta="Lineage">
-            {logError && <RiskBanner status="warn" title="日志不可用" detail={logError} />}
-            {logs.length === 0 && !logError && <EmptyState title="暂无执行日志" detail="选择策略后读取 strategy/{id}/log。" />}
-            {logs.map((log, index) => (
-              <div className="prototype-fallback" key={`${log.timestamp}-${index}`} style={{ marginBottom: 10 }}>
-                <div className="nm">{log.message}</div>
-                <div className="chips mt14">
-                  {log.details?.decision_context_id && <span className="chip active">{log.details.decision_context_id}</span>}
-                  {log.details?.plan_id && <span className="chip">{log.details.plan_id}</span>}
-                  {log.details?.candidate_id && <span className="chip">{log.details.candidate_id}</span>}
-                </div>
-                <button type="button" className="btn sm mt14" onClick={() => navigateRisk(log.details)}>风控</button>
-              </div>
+        </>
+      )}
+
+      {active === 'logs' && (
+        <PrototypeCard title="策略日志" icon={<SafetyCertificateOutlined />} meta="strategy/{id}/log">
+          <div className="param-bar" style={{ marginBottom: 12 }}>
+            <span className="plabel">策略</span>
+            <select
+              className="param-select"
+              aria-label="日志策略"
+              value={selectedStrategy?.id || ''}
+              onChange={event => {
+                const strategy = strategies.find(item => item.id === event.target.value)
+                if (strategy) {
+                  setSelectedStrategy(strategy)
+                  setLogLevelFilter('ALL')
+                  void loadLogs(strategy.id)
+                }
+              }}
+            >
+              {strategies.length === 0 && <option value="">暂无策略</option>}
+              {strategies.map(strategy => <option key={strategy.id} value={strategy.id}>{strategy.name}</option>)}
+            </select>
+            <span className="psep" />
+            <span className="plabel">级别</span>
+            <button
+              type="button"
+              className={`filter-btn${logLevelFilter === 'ALL' ? ' active' : ''}`}
+              onClick={() => setLogLevelFilter('ALL')}
+            >
+              全部
+            </button>
+            {logLevels.map(level => (
+              <button
+                key={level}
+                type="button"
+                className={`filter-btn${logLevelFilter === level ? ' active' : ''}`}
+                onClick={() => setLogLevelFilter(level)}
+              >
+                {level}
+              </button>
             ))}
-          </PrototypeCard>
-        </div>
+          </div>
+          {logError && <RiskBanner status="warn" title="日志不可用" detail={logError} />}
+          {visibleLogs.length === 0 && !logError && (
+            <EmptyState title="当前级别暂无日志" detail="切换级别筛选或选择其他策略。" />
+          )}
+          {visibleLogs.map(renderLogItem)}
+        </PrototypeCard>
       )}
 
       {active === 'config' && (
-        <div className="row r-6-4">
-          <PrototypeCard title="策略配置" icon={<RobotOutlined />} meta="Account scoped">
+        <>
+          <div className="row r-6-4">
+            <PrototypeCard title="策略配置" icon={<RobotOutlined />} meta="Account scoped">
+              {selectedStrategy ? (
+                <table className="tbl">
+                  <tbody>
+                    <tr><td>策略</td><td className="r mono">{selectedStrategy.name}</td></tr>
+                    <tr><td>交易模式</td><td className="r mono">{selectedStrategy.trade_mode || 'paper'}</td></tr>
+                    <tr><td>资金</td><td className="r mono">{selectedStrategy.capital ?? '--'}</td></tr>
+                    <tr><td>候选数</td><td className="r mono">{selectedStrategy.picks_count ?? selectedStrategy.picks?.length ?? 0}</td></tr>
+                    <tr><td>最大持仓</td><td className="r mono">{selectedStrategy.position_rules?.max_positions ?? '--'}</td></tr>
+                    <tr><td>单票上限</td><td className="r mono">{selectedStrategy.position_rules?.single_max_pct ?? '--'}</td></tr>
+                    <tr><td>日内最大亏损</td><td className="r mono">{selectedStrategy.risk_rules?.daily_max_loss_pct ?? '--'}</td></tr>
+                  </tbody>
+                </table>
+              ) : (
+                <EmptyState title="暂无策略配置" detail="strategy/list 当前没有返回可配置策略。" />
+              )}
+            </PrototypeCard>
+            <SideRail title="自动交易闸门" meta="策略 / 账户">
+              <DataDomainBadge domain="account" label="账户私有策略" />
+              <LineageChips items={[{ label: 'Strategy', value: selectedStrategy?.id || '暂无' }, { label: 'Risk', value: '强制预检', tone: 'warn' }]} />
+              <RiskBanner status="warn" title="自动实盘未放行" detail="投资者默认不可自动实盘，操盘手需绑定账户和风控策略。" />
+            </SideRail>
+          </div>
+          <PrototypeCard title="参数编辑" icon={<RobotOutlined />} meta="PUT strategy/{id}">
             {selectedStrategy ? (
-              <table className="tbl">
-                <tbody>
-                  <tr><td>策略</td><td className="r mono">{selectedStrategy.name}</td></tr>
-                  <tr><td>交易模式</td><td className="r mono">{selectedStrategy.trade_mode || 'paper'}</td></tr>
-                  <tr><td>资金</td><td className="r mono">{selectedStrategy.capital ?? '--'}</td></tr>
-                  <tr><td>候选数</td><td className="r mono">{selectedStrategy.picks_count ?? (selectedStrategy as any).picks?.length ?? 0}</td></tr>
-                  <tr><td>最大持仓</td><td className="r mono">{(selectedStrategy as any).position_rules?.max_positions ?? '--'}</td></tr>
-                  <tr><td>单票上限</td><td className="r mono">{(selectedStrategy as any).position_rules?.single_max_pct ?? '--'}</td></tr>
-                  <tr><td>日内最大亏损</td><td className="r mono">{(selectedStrategy as any).risk_rules?.daily_max_loss_pct ?? '--'}</td></tr>
-                </tbody>
-              </table>
+              <div style={{ display: 'grid', gap: 12, maxWidth: 320 }}>
+                <label>
+                  <span className="plabel">初始资金</span>
+                  <input
+                    type="number"
+                    className="param-input"
+                    style={{ width: '100%', marginTop: 4 }}
+                    aria-label="初始资金"
+                    min={100_000}
+                    step={10_000}
+                    value={editCapital}
+                    onChange={event => setEditCapital(Number(event.target.value))}
+                  />
+                </label>
+                <label>
+                  <span className="plabel">最大持仓数</span>
+                  <input
+                    type="number"
+                    className="param-input"
+                    style={{ width: '100%', marginTop: 4 }}
+                    aria-label="最大持仓数"
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={editMaxPositions}
+                    onChange={event => setEditMaxPositions(Number(event.target.value))}
+                  />
+                </label>
+                <div>
+                  <button type="button" className="btn sm" onClick={saveConfig} disabled={configSaving}>
+                    {configSaving ? '保存中...' : '保存配置'}
+                  </button>
+                </div>
+              </div>
             ) : (
-              <EmptyState title="暂无策略配置" detail="strategy/list 当前没有返回可配置策略。" />
+              <EmptyState title="无可编辑策略" detail="strategy/list 当前没有返回可编辑策略。" />
             )}
           </PrototypeCard>
-          <SideRail title="自动交易闸门" meta="策略 / 账户">
-            <DataDomainBadge domain="account" label="账户私有策略" />
-            <LineageChips items={[{ label: 'Strategy', value: selectedStrategy?.id || '暂无' }, { label: 'Risk', value: '强制预检', tone: 'warn' }]} />
-            <RiskBanner status="warn" title="自动实盘未放行" detail="投资者默认不可自动实盘，操盘手需绑定账户和风控策略。" />
-          </SideRail>
-        </div>
+        </>
       )}
+
+      <Modal
+        title={followTarget ? `一键跟单：${followTarget.name}` : '一键跟单'}
+        open={followTarget !== null}
+        onOk={submitFollow}
+        onCancel={() => setFollowTarget(null)}
+        okText="确认跟单"
+        cancelText="取消"
+        confirmLoading={followSaving}
+      >
+        {followTarget && (
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div className="prototype-panel-note">
+              模板类型 {templateTypeOf(followTarget)} · 最大持仓 {followTarget.max_positions ?? '--'} · 单票上限 {formatPct(followTarget.single_max)}
+            </div>
+            <label>
+              <span className="plabel">方案名称</span>
+              <input
+                className="param-input"
+                style={{ width: '100%', marginTop: 4 }}
+                aria-label="方案名称"
+                value={followName}
+                onChange={event => setFollowName(event.target.value)}
+              />
+            </label>
+            <label>
+              <span className="plabel">投入本金</span>
+              <input
+                type="number"
+                className="param-input"
+                style={{ width: '100%', marginTop: 4 }}
+                aria-label="投入本金"
+                min={100_000}
+                step={10_000}
+                value={followCapital}
+                onChange={event => setFollowCapital(Number(event.target.value))}
+              />
+            </label>
+            <label>
+              <span className="plabel">最大持仓数</span>
+              <input
+                type="number"
+                className="param-input"
+                style={{ width: '100%', marginTop: 4 }}
+                aria-label="跟单最大持仓数"
+                min={1}
+                max={50}
+                step={1}
+                value={followMaxPositions}
+                onChange={event => setFollowMaxPositions(Number(event.target.value))}
+              />
+            </label>
+          </div>
+        )}
+      </Modal>
     </PrototypePage>
   )
 }
