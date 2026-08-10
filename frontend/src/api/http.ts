@@ -61,33 +61,39 @@ export function clearPlatformContext() {
 }
 
 // ── Request interceptor: attach Authorization + platform boundary headers ──
+// 共享工厂: api 与 rootApi 都挂（rootApi 直达网关的 /v1/runtime/readiness 等端点也需鉴权）。
 
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = _getAccessToken?.()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  const platformSession = _getPlatformSession?.()
-  if (platformSession?.tenantId) {
-    config.headers['X-Tenant-Id'] = platformSession.tenantId
-  }
-  if (platformSession?.accountId) {
-    config.headers['X-Trade-Account-Id'] = platformSession.accountId
-  }
-  if (platformSession?.dataScope) {
-    config.headers['X-Data-Scope'] = platformSession.dataScope
-  }
-  if (platformSession?.roleView) {
-    config.headers['X-Role-View'] = platformSession.roleView
-  }
-  if (platformSession?.tradeMode) {
-    config.headers['X-Trade-Mode'] = platformSession.tradeMode
-  }
-  if (platformSession?.brokerAdapter) {
-    config.headers['X-Broker-Adapter'] = platformSession.brokerAdapter
-  }
-  return config
-})
+function attachAuthRequestInterceptor(instance: typeof api) {
+  instance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+    const token = _getAccessToken?.()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    const platformSession = _getPlatformSession?.()
+    if (platformSession?.tenantId) {
+      config.headers['X-Tenant-Id'] = platformSession.tenantId
+    }
+    if (platformSession?.accountId) {
+      config.headers['X-Trade-Account-Id'] = platformSession.accountId
+    }
+    if (platformSession?.dataScope) {
+      config.headers['X-Data-Scope'] = platformSession.dataScope
+    }
+    if (platformSession?.roleView) {
+      config.headers['X-Role-View'] = platformSession.roleView
+    }
+    if (platformSession?.tradeMode) {
+      config.headers['X-Trade-Mode'] = platformSession.tradeMode
+    }
+    if (platformSession?.brokerAdapter) {
+      config.headers['X-Broker-Adapter'] = platformSession.brokerAdapter
+    }
+    return config
+  })
+}
+
+attachAuthRequestInterceptor(api)
+attachAuthRequestInterceptor(rootApi)
 
 // ── Response interceptor: 401 → refresh → retry ──
 // 共享工厂: api 与 rootApi 挂同一逻辑, 重试时用各自实例保持 baseURL 语义。

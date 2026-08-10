@@ -376,12 +376,18 @@ def _query_index_close_quotes(trade_date: Optional[str] = None) -> dict[str, Any
     diff = []
     for row in rows:
         code = str(_row_get(row, "code") or _row_get(row, 0) or "")
+        # pg_adapter 会把 change_pct 结果键改写成 pct_chg（_KEY_MAP）；
+        # SQLite/元组行则按位置兜底，三种形态都兼容（0.0 涨跌幅是合法值，用 is not None 判断）
+        f3 = _row_get(row, "change_pct")
+        if f3 is None:
+            f3 = _row_get(row, "pct_chg")
+        if f3 is None:
+            f3 = _row_get(row, 2)
         diff.append({
             "f12": code,
             "f14": code_labels.get(code, code),
             "f2": _row_get(row, "close") or _row_get(row, 1),
-            # pg_adapter 会把 change_pct 结果键改写成 pct_chg（_KEY_MAP），两种都取
-            "f3": _row_get(row, "change_pct") if _row_get(row, "change_pct") is not None else _row_get(row, "pct_chg"),
+            "f3": f3,
             "f4": None,
             "f6": None,
         })

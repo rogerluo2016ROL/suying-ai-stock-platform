@@ -1,12 +1,34 @@
+import time
+
+import jwt
 from fastapi.testclient import TestClient
 from app.main import app
 from app import runtime
+from kronos_auth.config import KRONOS_JWT_SECRET, JWT_ALGORITHM
 
 MICROSERVICE_NAMES = {
     "api-gateway", "backend-auth", "screener-service", "prediction-service",
     "strategy-service", "signal-service", "alert-service", "trade-service",
     "backtest-service", "training-service", "diagnosis-service", "data-service",
 }
+
+
+def _mint_token(role: str = "admin") -> str:
+    now = int(time.time())
+    payload = {
+        "sub": "u1",
+        "name": "tester",
+        "role": role,
+        "type": "access",
+        "iat": now,
+        "exp": now + 600,
+        "jti": "test-jti",
+    }
+    return jwt.encode(payload, KRONOS_JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+
+def _auth_headers(role: str = "admin") -> dict:
+    return {"Authorization": f"Bearer {_mint_token(role)}"}
 
 
 def _ok_http(name, port, base):
@@ -25,7 +47,7 @@ def test_gateway_readiness_survives_one_timeout(monkeypatch):
             {"name": "postgresql", "port": 6432, "status": "ok", "latency_ms": 1.0},
         ]
     monkeypatch.setattr(runtime, "probe_runtime_matrix", fake_matrix)
-    response = TestClient(app).get("/api/v1/runtime/readiness")
+    response = TestClient(app).get("/api/v1/runtime/readiness", headers=_auth_headers())
     assert response.status_code == 200
     body = response.json()
     assert body["ready"] is False
@@ -55,7 +77,7 @@ def test_readiness_all_ok(monkeypatch):
     monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
     monkeypatch.setenv("KRONOS_PG_PORT", "6432")
     monkeypatch.setenv("KRONOS_REDIS_PORT", "7379")
-    body = TestClient(app).get("/api/v1/runtime/readiness").json()
+    body = TestClient(app).get("/api/v1/runtime/readiness", headers=_auth_headers()).json()
     assert body["live"] is True
     assert body["ready"] is True
     assert body["status"] == "ok"
@@ -90,7 +112,7 @@ def test_readiness_partial_timeout(monkeypatch):
 
     monkeypatch.setattr(runtime, "_probe_http", fake_http)
     monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
-    body = TestClient(app).get("/api/v1/runtime/readiness").json()
+    body = TestClient(app).get("/api/v1/runtime/readiness", headers=_auth_headers()).json()
     assert body["ready"] is False
     assert body["status"] == "degraded"
 
@@ -114,7 +136,7 @@ def test_readiness_infra_tcp_failure(monkeypatch):
     monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
     monkeypatch.setenv("KRONOS_PG_PORT", "6432")
     monkeypatch.setenv("KRONOS_REDIS_PORT", "7379")
-    body = TestClient(app).get("/api/v1/runtime/readiness").json()
+    body = TestClient(app).get("/api/v1/runtime/readiness", headers=_auth_headers()).json()
     # 微服务全部 ok → 旧契约 ready 仍为 True；总状态含基础设施 → degraded
     assert body["ready"] is True
     assert body["status"] == "degraded"
@@ -144,7 +166,7 @@ def test_readiness_skips_infra_when_port_env_unset(monkeypatch):
     monkeypatch.delenv("KRONOS_PG_PORT", raising=False)
     monkeypatch.delenv("KRONOS_REDIS_PORT", raising=False)
 
-    body = TestClient(app).get("/api/v1/runtime/readiness").json()
+    body = TestClient(app).get("/api/v1/runtime/readiness", headers=_auth_headers()).json()
 
     names = {c["name"] for c in body["components"]}
     assert "postgresql" not in names
@@ -167,3 +189,52 @@ def test_probe_http_does_not_follow_redirects(monkeypatch):
 
     result = asyncio.run(runtime._probe_http("svc", 8000, "http://svc:8000"))
     assert result["status"] == "down"
+
+
+def test_readiness_requires_auth():
+    """Release 门禁 High-1: readiness 匿名访问一律 401。"""
+    response = TestClient(app).get("/api/v1/runtime/readiness")
+    assert response.status_code == 401
+
+
+def test_readiness_non_privileged_omits_infra_components(monkeypatch):
+    """普通登录用户不见 infra 明细；status 只按微服务聚合（infra down 不暴露）。"""
+    async def fake_http(name, port, base):
+        return _ok_http(name, port, base)
+
+    async def fake_tcp(name, host, port):
+        return {"name": name, "port": port, "status": "down", "latency_ms": None}
+
+    monkeypatch.setattr(runtime, "_probe_http", fake_http)
+    monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
+    monkeypatch.setenv("KRONOS_PG_PORT", "6432")
+    monkeypatch.setenv("KRONOS_REDIS_PORT", "7379")
+
+    body = TestClient(app).get(
+        "/api/v1/runtime/readiness", headers=_auth_headers(role="user")
+    ).json()
+    assert "components" not in body
+    assert body["ready"] is True
+    assert body["status"] == "ok"  # infra down 对普通用户不可见
+    assert set(body["services"]) == MICROSERVICE_NAMES
+
+
+def test_readiness_privileged_sees_components(monkeypatch):
+    """admin/internal_analyst 可见 components（含 infra 明细）。"""
+    async def fake_http(name, port, base):
+        return _ok_http(name, port, base)
+
+    async def fake_tcp(name, host, port):
+        return _ok_tcp(name, host, port)
+
+    monkeypatch.setattr(runtime, "_probe_http", fake_http)
+    monkeypatch.setattr(runtime, "_probe_tcp", fake_tcp)
+    monkeypatch.setenv("KRONOS_PG_PORT", "6432")
+    monkeypatch.setenv("KRONOS_REDIS_PORT", "7379")
+
+    for role in ("admin", "internal_analyst"):
+        body = TestClient(app).get(
+            "/api/v1/runtime/readiness", headers=_auth_headers(role=role)
+        ).json()
+        assert "components" in body
+        assert {c["name"] for c in body["components"]} == MICROSERVICE_NAMES | {"postgresql", "redis"}

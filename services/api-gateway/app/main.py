@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import URLError, HTTPError
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from kronos_auth import get_current_user_jwt
@@ -32,7 +32,7 @@ async def health_ready():
     return {"live": True, "ready": all(item.get("ready", False) for item in services.values()), "services": services}
 
 @app.get("/api/v1/runtime/readiness")
-async def runtime_readiness():
+async def runtime_readiness(user: dict = Depends(get_current_user_jwt)):
     from .runtime import probe_runtime_matrix
     components = await probe_runtime_matrix()
     # 兼容旧契约: services 只含微服务（不含 PG/Redis），ready 为微服务聚合。
@@ -41,13 +41,19 @@ async def runtime_readiness():
         c["name"]: {"ready": c["status"] == "ok", "status": c["status"], "latency_ms": c["latency_ms"]}
         for c in service_components
     }
-    return {
+    # 安全收敛（release 门禁 High-1）：infra（PG/Redis 地址/端口/状态）明细仅对
+    # admin/internal_analyst 返回；普通登录用户只见微服务聚合，status 也不含 infra。
+    privileged = user.get("role") in ("admin", "internal_analyst")
+    status_basis = components if privileged else service_components
+    body = {
         "live": True,
         "ready": all(c["status"] == "ok" for c in service_components),
         "services": services,
-        "status": "ok" if all(c["status"] == "ok" for c in components) else "degraded",
-        "components": components,
+        "status": "ok" if all(c["status"] == "ok" for c in status_basis) else "degraded",
     }
+    if privileged:
+        body["components"] = components
+    return body
 
 _rate_store: dict[str, list[float]] = {}
 # P1-8: request counter for periodic eviction of stale rate-store keys.
