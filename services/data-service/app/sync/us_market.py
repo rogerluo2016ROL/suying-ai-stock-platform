@@ -3,7 +3,8 @@
 - sync_us_daily:   Tushare us_daily(trade_date=...) 全市场日线 (8:00 早报用前一夜美股收盘).
                    Tushare 单次上限 8000 行, offset 翻页; 数据未更新时回退东财实时快照.
 - sync_us_basic:   Tushare us_basic 周级刷新 (ts_code → 中/英文名称映射).
-- sync_global_index: Tushare index_global (IXIC/DJI/SPX/N225/KS11).
+- sync_global_index: Tushare index_global (IXIC/DJI/SPX/N225/KS11);
+                     美股指数 Tushare 更新滞后时东财快照兜底 (仅写更新的交易日).
 """
 
 import json
@@ -11,7 +12,7 @@ import logging
 import time
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time as dtime, timedelta, timezone
 
 logger = logging.getLogger("data-service.us_market")
 
@@ -20,6 +21,12 @@ _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
 
 # Tushare index_global 常用代码: 纳指/道指/标普/日经/韩国综合
 GLOBAL_INDEX_CODES = ["IXIC", "DJI", "SPX", "N225", "KS11"]
+
+# 东财全球指数 secid 映射 (Tushare index_global 的美股指数在北京 7:50 常尚未更新
+# 前夜收盘 — 实测滞后到 9 点后; 东财快照在美股收盘后即可用, 作兜底源).
+# 注意: 东财 "100.NDX" 是纳斯达克综合 (与 Tushare IXIC 同序列, 已数值核对),
+# 其纳指100 另用 "NDX100"。
+_EM_GLOBAL_SECIDS = {"IXIC": "100.NDX", "DJI": "100.DJIA", "SPX": "100.SPX"}
 
 
 def _pro():
@@ -194,8 +201,61 @@ def sync_us_basic(days_back: int = 0) -> dict:
     return {"table": "us_stock_basic", "written": len(rows), "pg_written": pg_written, "elapsed": elapsed}
 
 
+# ── 全球指数快照 (东财兜底) ─────────────────────────────────────────────────
+
+def _us_eastern(ts_epoch: int) -> datetime:
+    """epoch → 美东时间 (判断美股是否在交易时段 + 推导美股交易日)."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.fromtimestamp(ts_epoch, tz=ZoneInfo("America/New_York"))
+    except Exception:
+        # 容器缺 tzdata 时的降级: 美东 UTC-4 (夏令时, 3~11 月) / UTC-5
+        off = -4 if 3 <= datetime.now().month <= 11 else -5
+        return datetime.fromtimestamp(ts_epoch, tz=timezone(timedelta(hours=off)))
+
+
+def fetch_global_index_spot_eastmoney() -> list[tuple]:
+    """东财美股指数快照 → (ts_code, trade_date, close, pct_chg).
+
+    trade_date 取快照时刻的美东日期 (美股收盘 ts=16:00 ET → 当日)。
+    盘中 (9:30~16:00 ET) 的快照是未完结 session 的实时价, 直接丢弃,
+    避免把盘中价写成当日收盘。
+    """
+    secids = ",".join(_EM_GLOBAL_SECIDS.values())
+    params = {
+        "fltt": 2, "invt": 2, "secids": secids,
+        "fields": "f12,f13,f2,f3,f124",
+        "ut": "bd1d9ddb04089700cf9c27f6f7426281",
+    }
+    url = "https://push2.eastmoney.com/api/qt/ulist.np/get?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={
+        "User-Agent": _UA, "Referer": "https://quote.eastmoney.com/"})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8", "ignore"))
+    except Exception as e:
+        logger.warning("eastmoney global index spot failed: %s", e)
+        return []
+    rev = {v: k for k, v in _EM_GLOBAL_SECIDS.items()}
+    rows: list[tuple] = []
+    for it in ((data or {}).get("data") or {}).get("diff") or []:
+        code = rev.get(f"{it.get('f13')}.{it.get('f12')}")
+        ts = it.get("f124")
+        if not code or not ts or it.get("f2") in (None, "-"):
+            continue
+        et = _us_eastern(int(ts))
+        if dtime(9, 30) <= et.time() < dtime(16, 0):
+            continue  # 美股盘中, 不是收盘价
+        rows.append((code, et.date().isoformat(), _f(it.get("f2")), _f(it.get("f3"))))
+    return rows
+
+
 def sync_global_index(days_back: int = 5) -> dict:
-    """同步全球指数日线 (纳指/道指/标普/日经/韩国综合)."""
+    """同步全球指数日线 (纳指/道指/标普/日经/韩国综合).
+
+    Tushare 主源; 美股指数在北京早盘常未更新前夜收盘, 东财快照兜底
+    (只写比 Tushare 本轮结果更新的交易日, Tushare 下次成功会校正为官方值)。
+    """
     from app.sync.pg_writer import _pg_write
 
     pro = _pro()
@@ -207,6 +267,7 @@ def sync_global_index(days_back: int = 5) -> dict:
     start = (date.today() - timedelta(days=days_back + 5)).strftime("%Y%m%d")
     end = date.today().strftime("%Y%m%d")
     total, pg_written = 0, 0
+    fetched_max: dict[str, str] = {}
     for code in GLOBAL_INDEX_CODES:
         rate_limit()
         try:
@@ -219,8 +280,10 @@ def sync_global_index(days_back: int = 5) -> dict:
         rows = []
         for _, r in df.iterrows():
             td = str(r.get("trade_date", ""))
-            rows.append((code, f"{td[:4]}-{td[4:6]}-{td[6:]}",
-                         _f(r.get("close")), _f(r.get("pct_chg"))))
+            td_iso = f"{td[:4]}-{td[4:6]}-{td[6:]}"
+            rows.append((code, td_iso, _f(r.get("close")), _f(r.get("pct_chg"))))
+            if td_iso > fetched_max.get(code, ""):
+                fetched_max[code] = td_iso
         try:
             pg_written += _pg_write(
                 "global_index_daily",
@@ -231,6 +294,24 @@ def sync_global_index(days_back: int = 5) -> dict:
             total += len(rows)
         except Exception as e:
             logger.warning("PG write global_index_daily %s failed: %s", code, e)
+
+    # 东财兜底: 美股指数若有比 Tushare 更新的收盘快照则补写
+    spot = [r for r in fetch_global_index_spot_eastmoney()
+            if r[1] > fetched_max.get(r[0], "")]
+    if spot:
+        try:
+            pg_written += _pg_write(
+                "global_index_daily",
+                ["ts_code", "trade_date", "close", "pct_chg"],
+                ["ts_code", "trade_date"],
+                spot,
+            )
+            total += len(spot)
+            logger.info("global_index eastmoney fallback: %s",
+                        {r[0]: r[1] for r in spot})
+        except Exception as e:
+            logger.warning("PG write global_index_daily(eastmoney) failed: %s", e)
+
     elapsed = time.time() - t0
     logger.info("global_index: rows=%d pg=%d %.1fs", total, pg_written, elapsed)
     return {"table": "global_index_daily", "written": total, "pg_written": pg_written, "elapsed": elapsed}
