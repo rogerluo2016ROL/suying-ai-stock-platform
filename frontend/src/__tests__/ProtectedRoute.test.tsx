@@ -1,8 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { AuthProvider, type AuthContextValue } from '../contexts/AuthContext'
+import { type AuthContextValue } from '../contexts/AuthContext'
 import ProtectedRoute from '../components/auth/ProtectedRoute'
-import type { ReactNode } from 'react'
 
 // ── Mock useAuth ──
 

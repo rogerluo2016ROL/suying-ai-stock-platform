@@ -20,7 +20,7 @@ import {
 } from './chartOptions'
 import type { CandidateCompany } from './types'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 export interface ChainBubbleChartProps {
   /** 候选公司数据 */

@@ -164,7 +164,7 @@ export interface SelectedNodeThesis {
 // V6 ChainCandidate to CandidateCompany conversion
 // ─────────────────────────────────────────────────────────────────
 
-import type { ChainCandidate, ThreeFactorScores, ResonanceLevel } from '../../api/client'
+import type { ChainCandidate } from '../../api/client'
 
 /**
  * Convert V6 ChainCandidate to CandidateCompany for compatibility

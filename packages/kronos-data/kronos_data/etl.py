@@ -421,46 +421,64 @@ def _insert_rows(db: _Db, table: str, columns: list[str],
 # ═══════════════════════════════════════════════════════════════
 
 
-def sync_moneyflow(days_back: int = 30) -> dict:
-    """Sync pro.moneyflow() — per-date full-market returns."""
+def _sync_per_date(table: str, api_call, cols: list[str], row_mapper,
+                   days_back: int = 30, *, clean: bool = False, commit: bool = True) -> dict:
+    """按交易日全市场拉取的通用同步骨架 — 消除 per-date sync 的重复样板。
+
+    Args:
+        table: 表名
+        api_call: (pro, trade_date: str) -> DataFrame，调用 Tushare 拉取单日全市场数据
+        cols: 写入列
+        row_mapper: (row, trade_date: str) -> tuple，把单行 df 记录映射为写入元组
+        days_back: 回看交易日数
+        clean: 写前是否 clean_before_write（部分表需先清旧数据再重写）
+        commit: 写后是否 commit（个别 sync 只 close 不 commit）
+    """
     pro = _get_pro()
     if pro is None:
         return {"status": "skipped", "reason": "no Tushare token"}
     dates = _get_trade_dates(days_back)
     db = _get_etl_db()
-    clean_before_write(db, "moneyflow", days_back)
+    if clean:
+        clean_before_write(db, table, days_back)
 
     total, written = 0, 0
-    cols = ["code", "trade_date", "buy_sm_amount", "sell_sm_amount",
-            "buy_md_amount", "sell_md_amount", "buy_lg_amount", "sell_lg_amount",
-            "buy_elg_amount", "sell_elg_amount", "net_mf_amount", "net_mf_vol"]
-
     for d in dates:
         _rate_limit()
         try:
-            df = pro.moneyflow(trade_date=d)
+            df = api_call(pro, d)
         except Exception:
             continue
         if df is None or df.empty:
             continue
-        rows = []
-        for _, r in df.iterrows():
-            rows.append((
-                _code_from_ts(r["ts_code"]),
+        rows = [row_mapper(r, d) for _, r in df.iterrows()]
+        total += len(rows)
+        written += _insert_rows(db, table, cols, rows)
+
+    if commit:
+        db.commit()
+    db.close()
+    print(f"  {table}: {total} fetched, {written} written ({len(dates)} dates)")
+    return {"status": "ok", "table": table, "fetched": total, "written": written}
+
+
+def sync_moneyflow(days_back: int = 30) -> dict:
+    """Sync pro.moneyflow() — per-date full-market returns."""
+    cols = ["code", "trade_date", "buy_sm_amount", "sell_sm_amount",
+            "buy_md_amount", "sell_md_amount", "buy_lg_amount", "sell_lg_amount",
+            "buy_elg_amount", "sell_elg_amount", "net_mf_amount", "net_mf_vol"]
+
+    def mapper(r, d):
+        return (_code_from_ts(r["ts_code"]),
                 d[:4] + "-" + d[4:6] + "-" + d[6:8],
                 r.get("buy_sm_amount"), r.get("sell_sm_amount"),
                 r.get("buy_md_amount"), r.get("sell_md_amount"),
                 r.get("buy_lg_amount"), r.get("sell_lg_amount"),
                 r.get("buy_elg_amount"), r.get("sell_elg_amount"),
-                r.get("net_mf_amount"), r.get("net_mf_vol"),
-            ))
-        total += len(rows)
-        written += _insert_rows(db, "moneyflow", cols, rows)
+                r.get("net_mf_amount"), r.get("net_mf_vol"))
 
-    db.commit()
-    db.close()
-    print(f"  moneyflow: {total} fetched, {written} written ({len(dates)} dates)")
-    return {"status": "ok", "table": "moneyflow", "fetched": total, "written": written}
+    return _sync_per_date("moneyflow", lambda pro, d: pro.moneyflow(trade_date=d),
+                          cols, mapper, days_back, clean=True)
 
 
 def sync_hk_hold(days_back: int = 30) -> dict:

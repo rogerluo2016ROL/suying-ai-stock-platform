@@ -13,7 +13,6 @@ import type { AuctionIntentItem, DashboardData } from './types'
 import {
   auctionBucketPct,
   auctionChange,
-  auctionDimensionRows,
   auctionIntentLabel,
   auctionScore,
   auctionSectorHeat,

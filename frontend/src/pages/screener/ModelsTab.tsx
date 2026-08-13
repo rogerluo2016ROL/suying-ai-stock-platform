@@ -35,7 +35,7 @@ export function ModelsTab({
   tradeDate,
 }: ModelsTabProps) {
   const [selectedConsensusCode, setSelectedConsensusCode] = useState('')
-  const [recordingPool, setRecordingPool] = useState(false)
+  const [, setRecordingPool] = useState(false)
 
   // ===== 3.2 model-compare 派生：共识矩阵 + 跨模型评分 =====
   const consensusRows = useMemo(() => buildConsensusRows(modelComparePicks), [modelComparePicks])

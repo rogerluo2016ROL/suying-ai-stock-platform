@@ -1,5 +1,5 @@
 // P2-09: Unit tests for ChainTreeChart component and chartOptions builders
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { buildChainTreeOption, buildThemeTreeOption } from '../pages/supply-chain-bom/chartOptions'
 import type { BomNode, ThemeRow } from '../pages/supply-chain-bom/types'
 

@@ -1,6 +1,6 @@
-import { render, screen, act } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ConfigProvider, Radio, Typography } from 'antd'
+import { ConfigProvider, Radio } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { ThemeProvider, useTheme } from '../contexts/ThemeContext'
 

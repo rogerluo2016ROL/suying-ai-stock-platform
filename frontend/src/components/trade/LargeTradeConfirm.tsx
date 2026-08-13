@@ -2,7 +2,7 @@ import { Modal, Space, Descriptions, Tag, Typography } from 'antd'
 import { ExclamationCircleOutlined } from '@ant-design/icons'
 import type { OrderParams } from '../../hooks/useLiveTrade'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 interface LargeTradeConfirmProps {
   open: boolean

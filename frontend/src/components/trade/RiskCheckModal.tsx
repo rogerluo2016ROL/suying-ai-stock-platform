@@ -2,7 +2,7 @@ import { Modal, Space, Typography, Tag } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, WarningOutlined } from '@ant-design/icons'
 import type { PreCheckResult } from '../../hooks/useLiveTrade'
 
-const { Text, Title } = Typography
+const { Text } = Typography
 
 interface RiskCheckModalProps {
   open: boolean

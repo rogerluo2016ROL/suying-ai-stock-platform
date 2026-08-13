@@ -35,12 +35,6 @@ function strictWrapper({ children }: { children: ReactNode }) {
 
 // ── Helper: mock a successful refresh response ──
 
-// btoa-safe base64url encode
-function toBase64Url(str: string): string {
-  return btoa(unescape(encodeURIComponent(str)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
 function mockRefreshSuccess() {
   // Step 1: refresh endpoint returns new access_token
   mockFetch.mockResolvedValueOnce({

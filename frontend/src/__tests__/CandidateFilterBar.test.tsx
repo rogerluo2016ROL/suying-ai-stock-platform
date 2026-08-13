@@ -3,7 +3,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import CandidateFilterBar, { FILTER_OPTIONS, RESONANCE_OPTIONS } from '../pages/supply-chain-bom/CandidateFilterBar'
 
 // Mock chainApi.getCandidates - must be defined inside vi.mock factory (hoisted)

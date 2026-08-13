@@ -79,7 +79,6 @@ export function buildSentimentReasons(
 
   const trend = dimBy('trend')
   const liquidity = dimBy('liquidity')
-  const breadth = dimBy('breadth')
 
   const reasons: SentimentReason[] = [
     {
