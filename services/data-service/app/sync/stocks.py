@@ -70,7 +70,7 @@ def sync_stock_list(exchange: str = "") -> dict:
         )
         logger.info("PG stocks: %d rows written (UPSERT)", pg_written)
     except Exception as e:
-        logger.debug("PG stocks write skipped: %s", e)
+        logger.warning("PG stocks write failed: %s", e)
 
     # ── SQLite 写入 (fallback) ──
     sqlite_written = 0
@@ -138,7 +138,7 @@ def sync_stocks_incremental(trade_date: str = "") -> dict:
             now_cols=["updated_at"],
         )
     except Exception as e:
-        logger.debug("PG stocks incremental skipped: %s", e)
+        logger.warning("PG stocks incremental failed: %s", e)
 
     # SQLite 写入 (fallback)
     sqlite_written = 0

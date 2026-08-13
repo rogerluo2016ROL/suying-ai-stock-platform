@@ -80,8 +80,11 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
         return 0
     # Lazy import 避免循环依赖 (kronos_data.etl 顶层不依赖 services/)
     from kronos_data.etl import _insert_rows, _get_etl_db
-    db = _get_etl_db()
+    db = None
     try:
+        # 连接获取纳入 try：PG 不可达时 _get_etl_db() 抛连接异常，此前在 try 外会
+        # 直接外抛给调用方、被其 except logger.debug 吞掉 → PG-first 主路径静默丢数。
+        db = _get_etl_db()
         # ADR-013 §决策 4 (W-2): 二档阈值映射 — {table: {floor, warn}}; 未配置表回退 {} → 双 None
         cfg = _VOLUME_THRESHOLD_MAP.get(table, {})
         written = _insert_rows(db, table, columns, rows,
@@ -103,10 +106,11 @@ def _pg_write(table: str, columns: list[str], conflict_cols: list[str],
         )
         return 0
     finally:
-        try:
-            db.close()
-        except Exception:
-            pass
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                pass
 
 
 # ADR-013 §决策 4 (W-2 联动 S-2): _check_data_volume 已删 — 二档分级逻辑迁移到 _insert_rows

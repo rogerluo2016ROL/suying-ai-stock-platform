@@ -84,7 +84,7 @@ def sync_announcements(days_back: int = 7) -> dict:
                 )
                 pg_written += pg_w
             except Exception as e:
-                logger.debug("PG write announcements %s skipped: %s", d_iso, e)
+                logger.warning("PG write announcements %s failed: %s", d_iso, e)
 
         # ── SQLite 写入 (fallback) ──
         if SQLITE_FALLBACK_ENABLED:

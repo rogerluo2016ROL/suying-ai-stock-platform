@@ -97,7 +97,7 @@ def sync_stock_profiles(days_back: int = 0) -> dict:
             update_cols=[c for c in pg_cols if c != "code"],
         )
     except Exception as e:
-        logger.debug("PG write stock_profiles skipped: %s", e)
+        logger.warning("PG write stock_profiles failed: %s", e)
 
     # ── SQLite 写入 (fallback) ──
     if SQLITE_FALLBACK_ENABLED:

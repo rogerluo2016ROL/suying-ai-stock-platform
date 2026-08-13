@@ -181,3 +181,36 @@ def test_trigger_sync_prefers_data_service_proxy(monkeypatch):
     assert result["source"] == "data-service"
     assert result["table_key"] == "daily_kline"
     assert result["written"] == 12
+
+
+def test_dashboard_summary_runs_all_collectors_concurrently(monkeypatch):
+    """Regression (B1): dashboard_summary 并行化后仍须调用全部 10 个采集器并写入各自 key。
+
+    采集器定义在 app.routers.dashboard 模块内（dashboard_summary 按模块全局名引用），
+    故须 patch dashboard 模块而非 routes 兼容层。
+    """
+    from app.routers import dashboard as dash
+
+    collector_names = [
+        "_collect_market_sentiment", "_collect_signal_stocks", "_collect_limit_stocks",
+        "_collect_watchlist", "_collect_alert_signals", "_collect_auction_intent",
+        "_collect_market_regime_v2", "_collect_trading_calendar", "_collect_risk_interact",
+        "_collect_policy_news_monetary",
+    ]
+    called = []
+
+    def make(name):
+        def _fn(result):
+            called.append(name)
+            result[name] = name
+        return _fn
+
+    for name in collector_names:
+        monkeypatch.setattr(dash, name, make(name))
+
+    result = asyncio.run(dash.dashboard_summary(user={}))
+
+    assert sorted(called) == sorted(collector_names), \
+        f"未调用全部采集器: {set(collector_names) - set(called)}"
+    for name in collector_names:
+        assert result[name] == name, f"{name} 未写入结果"

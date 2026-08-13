@@ -106,6 +106,13 @@ def send_alert_card(
         {"tag": "div", "text": {"tag": "lark_md", "content": f"{icon} **{title}**\n{message}"}}
     ]
     fields = []
+    # 时间戳字段：让人一眼分辨实时告警 vs 积压（盘后回看关键）
+    try:
+        from datetime import datetime as _dt
+        _now = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+        fields.append({"is_short": True, "text": {"tag": "lark_md", "content": f"**时间**\n{_now}"}})
+    except Exception:
+        pass
     if code:
         fields.append({"is_short": True, "text": {"tag": "lark_md", "content": f"**标的**\n{code}"}})
     if score is not None:
@@ -128,15 +135,39 @@ def send_alert_card(
     return _send(cid, "interactive", json.dumps(card))
 
 
+def _record_alert_metric(ok: bool, latency_ms: int, reason: str | None) -> None:
+    """Best-effort: 累加本次告警推送指标进 push_metrics。绝不抛错。"""
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _tools_dir = str(_Path(__file__).resolve().parents[3] / "tools")
+        if _tools_dir not in _sys.path:
+            _sys.path.insert(0, _tools_dir)
+        from push_telemetry import record as _record
+        _record(
+            "alert",
+            push=1, success=1 if ok else 0, failure=0 if ok else 1,
+            latency_ms_p95=latency_ms or None, target_chats=1,
+            failure_reasons=[reason] if reason else None,
+        )
+    except Exception:
+        pass
+
+
 def notify(level: str, title: str, message: str, code: str = "",
            score: Optional[float] = None, extra: Optional[dict] = None,
            chat_id: Optional[str] = None) -> tuple[bool, str]:
     """统一入口：预警触发时调用。启用则发卡片，未启用返回 (False, 原因) 不抛异常。"""
     if not is_enabled():
         return False, "feishu disabled"
+    import time as _time
+    _t0 = _time.time()
     try:
-        return send_alert_card(level=level, title=title, message=message, code=code,
-                               score=score, extra=extra, chat_id=chat_id)
+        ok, msg = send_alert_card(level=level, title=title, message=message, code=code,
+                                  score=score, extra=extra, chat_id=chat_id)
     except Exception as e:
         logger.exception("feishu notify error")
+        _record_alert_metric(False, int((_time.time() - _t0) * 1000), f"exception: {e}")
         return False, f"exception: {e}"
+    _record_alert_metric(ok, int((_time.time() - _t0) * 1000), None if ok else (msg or "send_failed"))
+    return ok, msg

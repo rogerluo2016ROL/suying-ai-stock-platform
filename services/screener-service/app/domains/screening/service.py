@@ -1,9 +1,6 @@
 
 
-
-
 # ── re-export：保持 app.domains.screening.service 的导入路径兼容 ──
-
 
 
 # ── re-export：保持 app.domains.screening.service 的导入路径兼容 ──
@@ -432,36 +429,12 @@ def _query_supply_chain_data_readiness() -> dict[str, Any]:
     return supply_chain_service.data_readiness()
 
 
-def _stage_rank(stage: str | None) -> int:
-    return supply_chain_service.stage_rank(stage)
-
-
-def _pool_for_business_tag(status: str, revenue_ratio: float | None, commercialization_stage: str, evidence_count: int) -> str:
-    return supply_chain_service.pool_for_business_tag(status, revenue_ratio, commercialization_stage, evidence_count)
-
-
-def _layer_level_from_bom_level(level: str | None) -> str:
-    return supply_chain_service.layer_level_from_bom_level(level)
-
-
-def _build_layer_tree(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return supply_chain_service.build_layer_tree(nodes)
-
-
-def _fallback_supply_chain_layer_nodes() -> list[dict[str, Any]]:
-    return supply_chain_service.fallback_layer_nodes()
-
-
 def _query_supply_chain_layers() -> dict[str, Any]:
     return supply_chain_service.query_layers()
 
 
 def _query_supply_chain_layer_detail(layer_node_id: str) -> dict[str, Any]:
     return supply_chain_service.query_layer_detail(layer_node_id)
-
-
-def _business_tag_score_status(revenue_ratio: float | None, gross_profit_ratio: float | None, evidence_count: int) -> str:
-    return supply_chain_service.business_tag_score_status(revenue_ratio, gross_profit_ratio, evidence_count)
 
 
 def _query_company_business_tags(code: str) -> dict[str, Any]:

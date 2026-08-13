@@ -269,7 +269,7 @@ async def analyze_signal(code: str, user: dict = Depends(get_current_user_jwt)):
         if ev_score is not None and fin_score is not None:
             event_risk_score = min(100, (ev_score * 0.6 + fin_score * 0.4) * 10)
     except Exception:
-        pass
+        logger.warning("fundamental/event-risk scoring failed for %s", code)
 
     # Kronos is unavailable until a real inference result exists.
     kronos_confidence = None
@@ -281,7 +281,7 @@ async def analyze_signal(code: str, user: dict = Depends(get_current_user_jwt)):
         if regime.get("bonus") is not None:
             market_adapt = 50 + regime["bonus"] * 50
     except Exception:
-        pass
+        logger.warning("market regime scoring failed for %s", code)
 
     # Six-dimension weighted signal (total = 1.0)
     combined = _combine_signal_dimensions({

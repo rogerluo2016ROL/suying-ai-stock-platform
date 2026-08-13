@@ -1,6 +1,6 @@
 """Dashboard aggregation routes — /signal/dashboard-summary + /dashboard/* 兼容端点."""
 
-import os, logging
+import os, logging, asyncio
 from datetime import datetime, timezone
 from fastapi import Depends
 from kronos_auth import require_role, get_current_user_jwt
@@ -683,22 +683,12 @@ async def dashboard_summary(user: dict = Depends(get_current_user_jwt)):
     now_iso = datetime.now(timezone.utc).isoformat()
     result = {"refreshed_at": now_iso}
 
-    # ── 1. Market Sentiment ──
-    _collect_market_sentiment(result)
-
-    # ── 2. Signal stocks ──
-    _collect_signal_stocks(result)
-
-    # ── 3. Limit stocks ──
-    _collect_limit_stocks(result)
-
-    # ── 4. Service health (async parallel checks) ──
+    # ── 纯内存段 (无 IO)：服务健康 / 选股模式 / 数据源说明 ──
     result["service_health"] = [
         {"key": key, "name": name, "port": port, "online": True}
         for key, name, port in _DASHBOARD_SERVICES
     ]
 
-    # ── 5. Screener modes (inlined for efficiency) ──
     result["screener_modes"] = [
         {"id": "leader_scalp",    "name": "秋神龙头战法-盘后", "cycle": "1-5天",  "style": "激进"},
         {"id": "leader_intraday", "name": "秋神龙头战法-盘中", "cycle": "1-2天",  "style": "激进"},
@@ -714,13 +704,6 @@ async def dashboard_summary(user: dict = Depends(get_current_user_jwt)):
         {"id": "cb_auction_t0_v2_1", "name": "竞价选债 T+0 优化版 V2.1 稳健版", "cycle": "T+0", "style": "稳健优化"},
     ]
 
-    # ── 6. Watchlist ──
-    _collect_watchlist(result)
-
-    # ── 7. Trading alert signals ──
-    _collect_alert_signals(result)
-
-    # ── 8. Data sources ──
     result["data_sources"] = {
         "market_sentiment": "PG daily_kline 表 — 全市场涨跌幅聚合 + 14因子加权模型",
         "signal_stocks": "PG daily_kline + stocks — 今日涨跌幅绝对值 Top 10",
@@ -731,22 +714,24 @@ async def dashboard_summary(user: dict = Depends(get_current_user_jwt)):
         "watchlist": "PG stocks 表 — 按市值排序 Top 10",
     }
 
-    # ── 9. Auction intent ──
-    _collect_auction_intent(result)
+    # ── 10 个阻塞 DB 采集器并行化 (原串行阻塞事件循环) ──
+    # _PgAdapter 底层是 psycopg2 ThreadedConnectionPool (execute 线程安全)；
+    # 各 collector 只写 result 的不同 key、无共享可变状态 → 可安全 to_thread 并发。
+    collectors = [
+        _collect_market_sentiment,
+        _collect_signal_stocks,
+        _collect_limit_stocks,
+        _collect_watchlist,
+        _collect_alert_signals,
+        _collect_auction_intent,
+        _collect_market_regime_v2,
+        _collect_trading_calendar,
+        _collect_risk_interact,
+        _collect_policy_news_monetary,
+    ]
+    await asyncio.gather(*(asyncio.to_thread(fn, result) for fn in collectors))
 
     result["data_sources"]["auction_intent"] = "PG stk_auction_o — 开盘集合竞价多维意图分析 (价格方向/买卖压力/竞价强度/开盘延续)"
-
-    # ── P4: A股市场风向感知 (V2 八维模型) ──
-    _collect_market_regime_v2(result)
-
-    # ── P4: 交易日历 ──
-    _collect_trading_calendar(result)
-
-    # ── P3: 互动问答风险信号 ──
-    _collect_risk_interact(result)
-
-    # ── P3: 政策风向标 + 新闻联播热度 + 央行货币政策 ──
-    _collect_policy_news_monetary(result)
 
     return _with_signal_contract(
         result,

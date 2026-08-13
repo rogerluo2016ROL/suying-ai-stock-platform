@@ -233,7 +233,7 @@ async def run_leader_backtest(
         }
     except Exception as e:
         logger.error("Leader backtest failed: %s", e)
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "Leader backtest failed")
 
 
 @router.post("/run-cb")
@@ -261,6 +261,8 @@ async def run_cb_backtest(
 
         step = max(5, (len(dates) - forward_days - 20) // windows)
         results, all_returns = [], []
+        conn2 = _get_pg()
+        cur2 = conn2.cursor()
 
         for i in range(windows):
             idx = i * step
@@ -297,25 +299,27 @@ async def run_cb_backtest(
                 logger.debug("CB screening failed for %s: %s", sel_date, e)
                 continue
 
-            conn2 = _get_pg()
-            cur2 = conn2.cursor()
             fwd_rets = []
             for pk in picks[:top_n]:
                 code = pk.get("code", "") or pk.get("ts_code", "")
                 if not code:
                     continue
-                for col in ("ts_code", "code"):
-                    try:
-                        cur2.execute(f"SELECT close FROM cb_daily WHERE {col}=%s AND trade_date <= %s ORDER BY trade_date DESC LIMIT 1", (str(code), fwd_date_end))
-                        r1 = cur2.fetchone()
-                        cur2.execute(f"SELECT close FROM cb_daily WHERE {col}=%s AND trade_date <= %s ORDER BY trade_date DESC LIMIT 1", (str(code), sel_date))
-                        r2 = cur2.fetchone()
-                        break
-                    except Exception:
-                        continue
+                try:
+                    # 单条 OR 查询替代 ts_code/code 双列重试：避免每 pick 最多 4 次查询的 N+1
+                    cur2.execute(
+                        "SELECT close FROM cb_daily WHERE (ts_code=%s OR code=%s) "
+                        "AND trade_date <= %s ORDER BY trade_date DESC LIMIT 1",
+                        (str(code), str(code), fwd_date_end))
+                    r1 = cur2.fetchone()
+                    cur2.execute(
+                        "SELECT close FROM cb_daily WHERE (ts_code=%s OR code=%s) "
+                        "AND trade_date <= %s ORDER BY trade_date DESC LIMIT 1",
+                        (str(code), str(code), sel_date))
+                    r2 = cur2.fetchone()
+                except Exception:
+                    r1 = r2 = None
                 if r1 and r2 and r2[0] > 0:
                     fwd_rets.append(float((r1[0] - r2[0]) / r2[0] * 100))
-            conn2.close()
 
             if fwd_rets:
                 results.append({
@@ -324,6 +328,8 @@ async def run_cb_backtest(
                     "hit_rate_pct": round(float(np.mean(np.array(fwd_rets) > 0)) * 100, 1),
                 })
                 all_returns.extend(fwd_rets)
+
+        conn2.close()
 
         if not results:
             return {
@@ -429,7 +435,7 @@ async def run_afternoon_backtest(
         }
     except Exception as e:
         logger.error("Afternoon backtest failed: %s", e)
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "Afternoon backtest failed")
 
 
 # ═══════════════════════════════════════════════════════════════

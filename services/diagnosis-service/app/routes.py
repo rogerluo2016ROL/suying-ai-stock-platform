@@ -155,7 +155,7 @@ async def analyze_stock(
         logger.error("Diagnosis failed for %s: %s", code, e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Diagnosis failed: {str(e)}",
+            detail="Diagnosis failed",
         )
 
 
@@ -313,9 +313,10 @@ async def get_report(
         report = await run_diagnosis(code, db, auth_token=auth_token)
         return report
     except Exception as e:
+        logger.exception("Failed to generate report for %s", code)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate report: {str(e)}",
+            detail="Failed to generate report",
         )
 
 

@@ -6,21 +6,16 @@ RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sou
     && npm install -g @larksuite/cli@1.0.69 \
     && rm -rf /var/lib/apt/lists/*
 
-FROM python:3.11-slim
-ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-ARG PIP_DEFAULT_TIMEOUT=60
+FROM suying-python-base:latest
+
+# 本阶段仍需 APT_MIRROR：chromium/tzdata 额外系统依赖（gcc/g++ 已含在基础镜像）
 ARG APT_MIRROR=deb.debian.org
-ENV PIP_INDEX_URL=$PIP_INDEX_URL PIP_DEFAULT_TIMEOUT=$PIP_DEFAULT_TIMEOUT
 
-WORKDIR /app
-COPY packages/kronos-contracts /app/packages/kronos-contracts
-RUN pip install --no-cache-dir /app/packages/kronos-contracts
-
-# System deps: gcc/g++ for psycopg2 build, tzdata for cron 时区;
-# chromium + fonts-noto-cjk 用于早报海报 SVG → PNG 渲染 (generate_poster_image)
+# System deps: tzdata for cron 时区; chromium + fonts-noto-cjk 用于早报海报
+# SVG → PNG 渲染 (generate_poster_image)。gcc/g++ 已由基础镜像提供。
 RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ tzdata chromium fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
+    tzdata chromium fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
 ENV CHROME_BIN=/usr/bin/chromium
 
 # 从独立 Node 阶段复制飞书 CLI，避免在运行镜像安装完整 npm 工具链。

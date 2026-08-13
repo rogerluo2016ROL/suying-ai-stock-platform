@@ -305,6 +305,51 @@ def deliver_feishu_message(
     return state
 
 
+def _record_push_telemetry(
+    result: dict[str, Any],
+    deliveries: list[dict[str, Any]],
+    targets: list[dict[str, str]],
+    run_dir: Path,
+) -> None:
+    """Best-effort: 把本次多群扇出的指标累加进推送观测 Base（push_metrics）。
+
+    永不抛错 —— 埋点不得影响推送主路径。研究管线一天多次模型 run，每次都调
+    本函数，按 (date, research_pipeline) 增量合并到同一日行。
+    """
+    try:
+        import sys as _sys
+        _tools_dir = str(Path(__file__).resolve().parent)
+        if _tools_dir not in _sys.path:
+            _sys.path.insert(0, _tools_dir)
+        from push_telemetry import record as _record, _today as _telemetry_today
+    except Exception:
+        return
+    try:
+        confirmed = sum(1 for d in deliveries if d.get("push_status") == "confirmed")
+        unconfirmed = sum(1 for d in deliveries if d.get("push_status") == "unconfirmed")
+        failed = sum(1 for d in deliveries if d.get("push_status") == "failed")
+        reasons = [
+            str(d.get("error") or d.get("push_status"))
+            for d in deliveries
+            if d.get("push_status") == "failed" and (d.get("error") or d.get("push_status"))
+        ]
+        run_id = str((result.get("pipeline") or {}).get("run_id") or run_dir.name)
+        _record(
+            "research_pipeline",
+            date=str(result.get("trade_date") or _telemetry_today()),
+            push=len(deliveries),
+            success=confirmed + unconfirmed,
+            failure=failed,
+            delivery_confirmed=confirmed,
+            delivery_unconfirmed=unconfirmed,
+            target_chats=len(targets),
+            failure_reasons=reasons[:5],
+            run_id=run_id,
+        )
+    except Exception:
+        return
+
+
 def deliver_feishu_messages(
     *,
     run_dir: Path,
@@ -359,6 +404,9 @@ def deliver_feishu_messages(
     else:
         status = "failed_delivery"
     aggregate = {"status": status, "deliveries": deliveries}
+
+    # 推送观测埋点：把本次扇出指标累加进 push_metrics（best-effort，绝不阻断）
+    _record_push_telemetry(result, deliveries, targets, run_dir)
 
     result.setdefault("pipeline", {})["feishu_delivery"] = aggregate
     result["pipeline"]["feishu_deliveries"] = deliveries
@@ -861,10 +909,12 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
 
     from app.lark_bot import (
         LarkCommand,
+        _build_group_card,
         _format_group_reply,
         build_markdown_report,
         generate_poster_image,
         refresh_before_run,
+        send_card_to_chat,
         send_image_to_chat,
         send_text_to_chat,
         sync_markdown_to_lark_doc,
@@ -1079,20 +1129,32 @@ def run_pipeline(args: argparse.Namespace) -> dict[str, Any]:
     if resolve_send_feishu(args, config):
         if not chat_targets:
             raise SystemExit("缺少 chat_id，无法发送飞书群。")
-        message = _format_group_reply(result, doc or {})
         extra = _fallback_summary(fallback)
-        if extra:
-            message = message + "\n\n" + extra
         candidate_extra = _candidate_summary(result)
-        if candidate_extra:
-            message = message + "\n\n" + candidate_extra
-        deliver_feishu_messages(
-            run_dir=run_dir,
-            result=result,
-            targets=chat_targets,
-            message=message,
-            sender=send_text_to_chat,
-        )
+        try:
+            # 卡片化群消息(替代纯文本):结论先行+KPI+板块标签+Top5+跳仪表盘/文档
+            card = _build_group_card(result, doc or {}, fallback_extra=extra, candidate_extra=candidate_extra)
+            deliver_feishu_messages(
+                run_dir=run_dir,
+                result=result,
+                targets=chat_targets,
+                message=json.dumps(card, ensure_ascii=False),
+                sender=send_card_to_chat,
+            )
+        except Exception:
+            # 卡片构建/发送异常 → 回退纯文本,绝不阻断推送
+            message = _format_group_reply(result, doc or {})
+            if extra:
+                message = message + "\n\n" + extra
+            if candidate_extra:
+                message = message + "\n\n" + candidate_extra
+            deliver_feishu_messages(
+                run_dir=run_dir,
+                result=result,
+                targets=chat_targets,
+                message=message,
+                sender=send_text_to_chat,
+            )
         if args.send_poster:
             # 海报是增强项: 渲染/发送失败不影响群消息与文档已送达的事实, 不阻断流水线
             try:

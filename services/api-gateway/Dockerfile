@@ -1,9 +1,4 @@
-FROM python:3.11-slim
-ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-ARG PIP_DEFAULT_TIMEOUT=60
-ENV PIP_INDEX_URL=$PIP_INDEX_URL PIP_DEFAULT_TIMEOUT=$PIP_DEFAULT_TIMEOUT
-
-WORKDIR /app
+FROM suying-python-base:latest
 
 # 网关侧 JWT 验签依赖共享认证包
 COPY packages/kronos-auth /app/packages/kronos-auth

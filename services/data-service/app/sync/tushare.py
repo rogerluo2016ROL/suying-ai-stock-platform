@@ -169,14 +169,14 @@ def sync_post_market_core(trade_date: str) -> dict:
             pg_mf = write_moneyflow(mf_rows)
             results["moneyflow"]["pg_written"] = pg_mf
         except Exception as e:
-            logger.debug("PG write moneyflow skipped: %s", e)
+            logger.warning("PG write moneyflow failed: %s", e)
     if sl_rows:
         try:
             from app.sync.pg_writer import write_stk_limit
             pg_sl = write_stk_limit(sl_rows)
             results["stk_limit"]["pg_written"] = pg_sl
         except Exception as e:
-            logger.debug("PG write stk_limit skipped: %s", e)
+            logger.warning("PG write stk_limit failed: %s", e)
 
     # SQLite 写入 moneyflow + stk_limit (fallback)
     if SQLITE_FALLBACK_ENABLED and mf_rows:
@@ -218,7 +218,7 @@ def sync_post_market_core(trade_date: str) -> dict:
             from app.sync.pg_writer import write_index_daily
             pg_idx = write_index_daily(idx_rows)
         except Exception as e:
-            logger.debug("PG write index_daily skipped: %s", e)
+            logger.warning("PG write index_daily failed: %s", e)
 
     # SQLite 写入 index_daily (fallback)
     if SQLITE_FALLBACK_ENABLED and idx_rows:
@@ -257,7 +257,7 @@ def sync_post_market_ext(trade_date: str) -> dict:
                     from app.sync.pg_writer import write_ths_daily
                     pg_wr = write_ths_daily(rows)
             except Exception as e:
-                logger.debug("PG write %s skipped: %s", table, e)
+                logger.warning("PG write %s failed: %s", table, e)
         r["pg_written"] = pg_wr
         # SQLite 写入 (fallback)
         if SQLITE_FALLBACK_ENABLED and rows:
@@ -291,7 +291,7 @@ def sync_post_market_ext(trade_date: str) -> dict:
             from app.sync.pg_writer import write_limit_list_d
             pg_lim = write_limit_list_d(limit_rows)
         except Exception as e:
-            logger.debug("PG write limit_list_d skipped: %s", e)
+            logger.warning("PG write limit_list_d failed: %s", e)
 
         # SQLite 写入 limit_list_d (fallback)
         if SQLITE_FALLBACK_ENABLED:

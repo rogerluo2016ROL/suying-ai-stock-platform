@@ -228,7 +228,7 @@ async def api_run_training(
         raise HTTPException(status_code=400, detail={"error": "invalid_params", "message": str(e)})
     except Exception as e:
         logger.exception("Failed to start training")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -643,7 +643,7 @@ async def api_deploy_model(
         })
     except Exception as e:
         logger.exception("Failed to deploy model")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
     return DeployResponse(
         model_id=model_id,
@@ -745,7 +745,7 @@ async def api_rollback_model(
         raise
     except Exception as e:
         logger.exception("Failed to rollback model")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
     # Sync MLflow
     try:
@@ -821,7 +821,7 @@ async def api_archive_model(
         raise
     except Exception as e:
         logger.exception("Failed to archive model")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -878,7 +878,7 @@ async def api_compare_models(
         raise
     except Exception as e:
         logger.exception("Failed to load models for comparison")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
     # Parse metrics
     new_metrics = new_model_data.get("metrics", {})
@@ -959,7 +959,7 @@ async def api_configure_schedule(
         )
     except Exception as e:
         logger.exception("Failed to update schedule")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -988,7 +988,7 @@ async def api_get_schedule(
         )
     except Exception as e:
         logger.exception("Failed to get schedule")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1093,7 +1093,7 @@ async def api_calibrate_factors(
         raise
     except Exception as e:
         logger.exception("Calibration failed")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1129,4 +1129,4 @@ async def api_get_ic_analysis(
         )
     except Exception as e:
         logger.exception("IC analysis failed")
-        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": str(e)})
+        raise HTTPException(status_code=500, detail={"error": "internal_error", "message": "internal server error"})

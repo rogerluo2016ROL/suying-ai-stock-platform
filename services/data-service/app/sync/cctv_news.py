@@ -77,7 +77,7 @@ def sync_cctv_news(days_back: int = 7) -> dict:
                 rows,
             )
         except Exception as e:
-            logger.debug("PG write cctv_news skipped: %s", e)
+            logger.warning("PG write cctv_news failed: %s", e)
 
         # ── SQLite fallback ──
         if SQLITE_FALLBACK_ENABLED:

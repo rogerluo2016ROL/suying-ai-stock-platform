@@ -36,7 +36,7 @@
 |---|---|---|---|
 | api-gateway | 8080 | 统一 API 网关 | `uvicorn app.main:app --port 8080` |
 | backend (auth) | 9001 | JWT 认证 + RBAC + 用户管理 | `uvicorn app.main:app --port 9001` |
-| screener-service | 8001 | 6 模式选股 + 多因子排序 | `uvicorn app.main:app --port 8001` |
+| screener-service | 8001 | 20 模式选股 (见 config.py AVAILABLE_MODES) + 多因子排序 | `uvicorn app.main:app --port 8001` |
 | prediction-service | 8002 | Kronos 30日 K线预测 | `uvicorn app.main:app --port 8002` |
 | strategy-service | 8003 | 方案管理 + 自动交易策略引擎 + 执行器 | `uvicorn app.main:app --port 8003` |
 | signal-service | 8004 | 综合交易信号分析 (50维) | `uvicorn app.main:app --port 8004` |
@@ -46,11 +46,11 @@
 | training-service | 8008 | 模型训练 + MLflow 实验追踪 | `uvicorn app.main:app --port 8008` |
 | diagnosis-service | 8009 | 五维个股诊断 (技术/资金/基本面/AI/情绪) | `uvicorn app.main:app --port 8009` |
 | data-service | 8010 | 后台数据采集 + 定时调度 (常驻) | `uvicorn app.main:app --port 8010` |
-| PostgreSQL | 6432 | docker: `postgres:15-alpine`, 用户 `kronos/kronos`, 库 `kronos` | `docker start docker-postgres-1` |
-| Redis | 7379 | docker: `redis:7-alpine` | `docker start docker-redis-1` |
+| PostgreSQL | 6432 | docker: `postgres:15-alpine`, 用户 `kronos/kronos`, 库 `kronos` | `docker start suying-dev-postgres-1` |
+| Redis | 7379 | docker: `redis:7-alpine` | `docker start suying-dev-redis-1` |
 | Frontend | 3000 | Vite dev server | `cd frontend && npm run dev` |
 
-> 启动所有基础设施: `docker start docker-postgres-1 docker-redis-1`
+> 启动所有基础设施: `docker start suying-dev-postgres-1 suying-dev-redis-1`
 > 一键启动全部: `cd docker && docker compose up -d`（compose 已含全部 11 微服务 + frontend）
 > 端口绑定（2026-07 安全收敛）: compose 下 postgres/redis 与 8001–8010 仅绑 `127.0.0.1`（本机调试可达，LAN 不可达）；对外入口仅 8080/9001/3000。
 
@@ -142,7 +142,7 @@
 > 项目测试入口固化在此，agent 跑测试时优先查此节，避免重新探索目录结构。
 
 - **backend unit**: `cd backend && .venv/bin/pytest tests/ -v`
-- **backend integration**: 需要 Docker PostgreSQL + Redis 运行中 (`docker start docker-postgres-1 docker-redis-1`)
+- **backend integration**: 需要 Docker PostgreSQL + Redis 运行中 (`docker start suying-dev-postgres-1 suying-dev-redis-1`)
 - **frontend unit**: `cd frontend && npx vitest run`
 - **frontend SIT**: `cd frontend && npx vitest run tests/sit/`
 - **Python package tests**: `cd packages/<name> && pytest tests/ -v`

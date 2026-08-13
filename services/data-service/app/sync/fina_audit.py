@@ -140,7 +140,7 @@ def sync_fina_audit(days_back: int = 365) -> dict:
             )
             pg_written += pg_w
         except Exception as e:
-            logger.debug("PG write fina_audit skipped: %s", e)
+            logger.warning("PG write fina_audit failed: %s", e)
 
         # ── SQLite 写入 (fallback) ──
         if SQLITE_FALLBACK_ENABLED:

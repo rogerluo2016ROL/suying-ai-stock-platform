@@ -19,8 +19,8 @@ This project uses OpenWolf for context management. Read and follow .wolf/OPENWOL
 
 | 类别 | 选型 | ADR |
 |---|---|---|
-| 前端框架 | React 18 + Vite 6 + TypeScript 5.6 + Ant Design 5.22 + ECharts 5.5 | — |
-| 后端框架 | FastAPI (Python ≥3.10) + uvicorn + Pydantic v2 | — |
+| 前端框架 | React 18 + Vite 6 + TypeScript 5.6 + Ant Design 5.22 + ECharts 6.1 | — |
+| 后端框架 | FastAPI (Python 3.11) + uvicorn + Pydantic v2 | — |
 | 数据库 | PostgreSQL 15 (primary, docker) + SQLite (fallback/kronos legacy) + Redis 7 (cache) | ADR-001 |
 | AI/ML | Kronos-mini (公开模型托管推理, 非自研 — 见 ADR-005/M05) + LightGBM + CatBoost | ADR-004 (model-training-pipeline), ADR-005 |
 | LLM SDK | DeepSeek (方案生成, strategy-service) | — |
@@ -29,7 +29,7 @@ This project uses OpenWolf for context management. Read and follow .wolf/OPENWOL
 | 自动交易 | asyncio 定时轮询 + APScheduler (训练调度) | ADR-003, ADR-004 |
 | 测试框架 | pytest (Python) + vitest (前端) | — |
 | 数据管道 | data-service (asyncio 调度 + PG-first 直写 + Tushare 1.4.29) + SQLite fallback | ADR-006 |
-| 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 8 微服务; 另有 3 个手动启动: backend/data-service/training-service) | — |
+| 部署 | Docker Compose (dev, postgres:15-alpine + redis:7-alpine + 11 微服务 + backend + frontend) | — |
 
 ## Verified Facts (Quick Reference)
 
@@ -41,7 +41,7 @@ This project uses OpenWolf for context management. Read and follow .wolf/OPENWOL
 |---|---|---|---|
 | api-gateway | 8080 | 统一 API 网关 | `uvicorn app.main:app --port 8080` |
 | backend (auth) | 9001 | JWT 认证 + RBAC + 用户管理 | `uvicorn app.main:app --port 9001` |
-| screener-service | 8001 | 7 模式选股 + 多因子排序 | `uvicorn app.main:app --port 8001` |
+| screener-service | 8001 | 20 模式选股 (见 config.py AVAILABLE_MODES) + 多因子排序 | `uvicorn app.main:app --port 8001` |
 | prediction-service | 8002 | Kronos 30日 K线预测 | `uvicorn app.main:app --port 8002` |
 | strategy-service | 8003 | 方案管理 + 自动交易策略引擎 + 执行器 | `uvicorn app.main:app --port 8003` |
 | signal-service | 8004 | 综合交易信号分析 (50维) | `uvicorn app.main:app --port 8004` |
@@ -50,11 +50,11 @@ This project uses OpenWolf for context management. Read and follow .wolf/OPENWOL
 | backtest-service | 8007 | 历史回测 + IC/ICIR 分析 | `uvicorn app.main:app --port 8007` |
 | training-service | 8008 | 模型训练 + MLflow 实验追踪 | `uvicorn app.main:app --port 8008` |
 | diagnosis-service | 8009 | 五维个股诊断 (技术/资金/基本面/AI/情绪) | `uvicorn app.main:app --port 8009` |
-| PostgreSQL | 6432 | docker: `postgres:15-alpine`, 用户 `kronos/kronos`, 库 `kronos` | `docker start docker-postgres-1` |
-| Redis | 7379 | docker: `redis:7-alpine` | `docker start docker-redis-1` |
+| PostgreSQL | 6432 | docker: `postgres:15-alpine`, 用户 `kronos/kronos`, 库 `kronos` | `docker start suying-dev-postgres-1` |
+| Redis | 7379 | docker: `redis:7-alpine` | `docker start suying-dev-redis-1` |
 | Frontend | 3000 | Vite dev server | `cd frontend && npm run dev` |
 
-> 启动所有基础设施: `docker start docker-postgres-1 docker-redis-1`
+> 启动所有基础设施: `docker start suying-dev-postgres-1 suying-dev-redis-1`
 > 一键启动全部: `cd docker && docker compose up -d`
 
 ### 认证机制
@@ -103,7 +103,7 @@ This project uses OpenWolf for context management. Read and follow .wolf/OPENWOL
 | `Kronos/` | Kronos 模型训练工具 + WebUI (Flask legacy) + 数据/模型输出 |
 | `docker/` | Docker Compose 编排 + 每个服务的 Dockerfile |
 | `services/sql/` | PostgreSQL 初始化 SQL + 数据迁移脚本 |
-| `docs/adr/` | 6 个 ADR: 认证/券商交易/自动交易/训练/诊断/数据管道 |
+| `docs/adr/` | 26 个 ADR (索引见 docs/adr/README.md; 下表 ADR 基线仅列核心 6 项) |
 | `docs/prd/` | PRD 文档 (auto-trading / live-trading) |
 
 ### ADR 基线
@@ -149,7 +149,7 @@ This project uses OpenWolf for context management. Read and follow .wolf/OPENWOL
 > 项目测试入口固化在此，agent 跑测试时优先查此节，避免重新探索目录结构。
 
 - **backend unit**: `cd backend && .venv/bin/pytest tests/ -v`
-- **backend integration**: 需要 Docker PostgreSQL + Redis 运行中 (`docker start docker-postgres-1 docker-redis-1`)
+- **backend integration**: 需要 Docker PostgreSQL + Redis 运行中 (`docker start suying-dev-postgres-1 suying-dev-redis-1`)
 - **frontend unit**: `cd frontend && npx vitest run`
 - **frontend SIT**: `cd frontend && npx vitest run tests/sit/`
 - **Python package tests**: `cd packages/<name> && pytest tests/ -v`

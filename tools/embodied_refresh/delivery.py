@@ -111,6 +111,32 @@ def deliver_change_batch(
     total = 3
     status = "success" if total > 0 and confirmed == total else "data_success_delivery_incomplete"
     summary = DeliverySummary(batch_id, total, confirmed, total - confirmed, status)
+
+    # 推送观测埋点：把本批 3 群扇出指标累加进 push_metrics（best-effort，绝不阻断）
+    try:
+        import sys as _sys
+        from pathlib import Path as _Path
+        _tools_dir = str(_Path(__file__).resolve().parents[1])
+        if _tools_dir not in _sys.path:
+            _sys.path.insert(0, _tools_dir)
+        from push_telemetry import record as _record
+        unconf = sum(1 for r in rows if r.status == "unconfirmed")
+        failed = sum(1 for r in rows if r.status == "failed")
+        attempts = sum(int(getattr(r, "attempt_count", 1) or 1) for r in rows)
+        _record(
+            "embodied_refresh",
+            push=len(rows),
+            success=confirmed + unconf,
+            failure=failed,
+            delivery_confirmed=confirmed,
+            delivery_unconfirmed=unconf,
+            retries=max(0, attempts - len(rows)),
+            target_chats=total,
+            run_id=batch_id,
+        )
+    except Exception:
+        pass
+
     return summary
 
 

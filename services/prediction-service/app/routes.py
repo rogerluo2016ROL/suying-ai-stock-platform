@@ -1,6 +1,6 @@
 """Prediction API — real Kronos K-line forecasting."""
 
-import os, logging
+import os, logging, asyncio
 from fastapi import APIRouter, Depends, Query, HTTPException
 import pandas as pd
 import numpy as np
@@ -142,6 +142,7 @@ def _get_auxiliary_features(code: str) -> dict | None:
     Data sources: moneyflow (fund flow), daily_basic (valuation/activity),
     stk_factor_pro (technical indicators).
     """
+    conn = None
     try:
         import psycopg2
         pg_url = os.environ.get("KRONOS_PG_URL", "postgresql://kronos:kronos@localhost:6432/kronos")
@@ -207,6 +208,11 @@ def _get_auxiliary_features(code: str) -> dict | None:
         conn.close()
         return feats if feats else None
     except Exception:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
         return None
 
 
@@ -481,7 +487,7 @@ async def predict_stock_fast(
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """🔥 V2 快速预测: 单样本+低延迟，适合实时诊断 (延迟 ~300ms vs 标准 ~1s)。"""
-    kline = _get_kline(code)
+    kline = await asyncio.to_thread(_get_kline, code)
     if kline is None:
         raise HTTPException(
             404,
@@ -512,7 +518,8 @@ async def predict_stock_fast(
                 pred_len=pred_days, verbose=False,
             )
         except Exception as e:
-            raise HTTPException(500, f"Prediction failed: {e}")
+            logger.exception("Prediction failed")
+            raise HTTPException(500, "Prediction failed")
 
     current_price = float(df["close"].iloc[-1])
     pred_df = _sanitize_prediction_df(pred_df, current_price)
@@ -523,7 +530,7 @@ async def predict_stock_fast(
     auxiliary = None
     adjusted_return = pred_return
     try:
-        feats = _get_auxiliary_features(code)
+        feats = await asyncio.to_thread(_get_auxiliary_features, code)
         if feats:
             auxiliary = _compute_auxiliary_score(feats)
             # Adjustment: ±2% max based on auxiliary score deviation from 5
@@ -565,7 +572,7 @@ async def predict_stock(
     user: dict = Depends(require_role("admin", "internal_analyst", "user")),
 ):
     """Run real Kronos prediction for a single stock."""
-    kline = _get_kline(code)
+    kline = await asyncio.to_thread(_get_kline, code)
     if kline is None:
         raise HTTPException(
             404,
@@ -598,7 +605,8 @@ async def predict_stock(
                 verbose=False,
             )
         except Exception as e:
-            raise HTTPException(500, f"Prediction failed: {e}")
+            logger.exception("Prediction failed")
+            raise HTTPException(500, "Prediction failed")
 
     current_price = float(df["close"].iloc[-1])
     pred_df = _sanitize_prediction_df(pred_df, current_price)
@@ -613,7 +621,7 @@ async def predict_stock(
     auxiliary = None
     adjusted_return = pred_return
     try:
-        feats = _get_auxiliary_features(code)
+        feats = await asyncio.to_thread(_get_auxiliary_features, code)
         if feats:
             auxiliary = _compute_auxiliary_score(feats)
             bonus = (auxiliary["score"] - 5) * 0.4
@@ -659,7 +667,7 @@ async def predict_stock_meta(code: str, pred_days: int = Query(20, ge=5, le=30),
                              user: dict = Depends(require_role("admin", "internal_analyst", "user"))):
     """P4: Kronos 元模型融合 — 20维辅助特征加权."""
     if not _m._model_loaded: raise HTTPException(503, "Model not loaded")
-    kline = _get_kline(code)
+    kline = await asyncio.to_thread(_get_kline, code)
     if kline is None:
         raise HTTPException(
             404,
@@ -675,12 +683,14 @@ async def predict_stock_meta(code: str, pred_days: int = Query(20, ge=5, le=30),
     try:
         pred_df = _m._predictor.predict_fast(df=x_df, x_timestamp=x_ts2,
             y_timestamp=pd.Series(y_ts), pred_len=pred_days, verbose=False)
-    except Exception as e: raise HTTPException(500, str(e))
+    except Exception as e:
+        logger.exception("Prediction failed")
+        raise HTTPException(500, "Prediction failed")
     cp = float(df["close"].iloc[-1])
     pred_df = _sanitize_prediction_df(pred_df, cp)
     pc = float(pred_df["close"].iloc[-1])
     pr = round((pc/cp-1)*100, 2)
-    feats = _get_auxiliary_features(code) or {}
+    feats = (await asyncio.to_thread(_get_auxiliary_features, code)) or {}
     aux = _compute_auxiliary_score(feats) if feats else {"score":5,"signals":[]}
     vb = 2.0 if (5<(feats.get("pe",0)<25) and (feats.get("pb",0)<3)) else (-2.0 if feats.get("pe",0)>100 else 0)
     mr = round(pr*0.60 + (aux["score"]-5)*0.5*0.25 + vb*0.15, 2)

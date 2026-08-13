@@ -63,6 +63,7 @@ def _has_latest_completed_trade_day(table_key: str) -> bool:
 
     try:
         import psycopg2
+        from psycopg2 import sql
 
         conn = psycopg2.connect(PG_URL, connect_timeout=3)
         cur = conn.cursor()
@@ -72,7 +73,7 @@ def _has_latest_completed_trade_day(table_key: str) -> bool:
         except Exception:
             conn.rollback()
             expected = _latest_completed_weekday()
-        cur.execute(f"SELECT MAX(trade_date) FROM {table_key}")
+        cur.execute(sql.SQL("SELECT MAX(trade_date) FROM {}").format(sql.Identifier(table_key)))
         actual = cur.fetchone()[0]
         conn.close()
         return bool(expected and actual and actual >= expected)
@@ -128,9 +129,9 @@ async def data_status(user: dict = Depends(get_current_user_jwt)):
     result = get_job_status()
 
     # 附加 PG 连接状态 (ADR-006)
-    result["pg_connection"] = _check_pg_connection()
+    result["pg_connection"] = await asyncio.to_thread(_check_pg_connection)
     result["runtime_config"] = importlib.import_module("app.config").get_runtime_config_status()
-    result["readiness"] = _build_readiness_status()
+    result["readiness"] = await asyncio.to_thread(_build_readiness_status)
 
     # 附加限频状态 (ADR-006)
     result["rate_limiter"] = get_rate_limit_status()
@@ -192,7 +193,7 @@ async def data_schedules(user: dict = Depends(get_current_user_jwt)):
 @router.get("/readiness")
 async def data_readiness(user: dict = Depends(get_current_user_jwt)):
     # readiness 与兼容 status 使用同一套组件判定，避免“未配 Tushare 仍 ready”。
-    return _build_readiness_status()
+    return await asyncio.to_thread(_build_readiness_status)
 
 @router.post('/readiness/evaluate')
 async def evaluate_readiness(profile: str, target_trade_date: date, cutoff_time=None,
@@ -291,7 +292,7 @@ async def trigger_table_backfill(
         result_status = result.get("status") if isinstance(result, dict) else None
         status = result_status if result_status in {"ok", "skipped", "error"} else "ok"
         noop_reason = None
-        if status == "ok" and pg_status == "partial" and _has_latest_completed_trade_day(table_key):
+        if status == "ok" and pg_status == "partial" and await asyncio.to_thread(_has_latest_completed_trade_day, table_key):
             pg_status = "ok"
             noop_reason = "already_up_to_date"
         payload = {
@@ -330,4 +331,4 @@ async def health():
 
 @router.get("/readiness")
 async def readiness(user: dict = Depends(get_current_user_jwt)):
-    return _build_readiness_status()
+    return await asyncio.to_thread(_build_readiness_status)

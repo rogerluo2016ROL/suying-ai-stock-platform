@@ -75,7 +75,7 @@ def sync_mp_report(days_back: int = 90) -> dict:
                 rows,
             )
         except Exception as e:
-            logger.debug("PG write mp_report skipped: %s", e)
+            logger.warning("PG write mp_report failed: %s", e)
 
     # ── SQLite fallback ──
     if rows and SQLITE_FALLBACK_ENABLED:

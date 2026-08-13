@@ -120,3 +120,7 @@ chatbi-workspace/raw/backend/cockpit-screen
 # 备份与构建产物
 *.backup-*
 *.egg-info/
+
+# 运行时日志 + 含密钥的本地配置（不提交）
+logs/
+configs/push_observability.json

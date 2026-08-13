@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日推送观测汇总卡 · 预览</title>
+<style>
+  :root{
+    --ink:#1a2230; --ink2:#5a6573; --ink3:#8b94a3;
+    --green:#16a34a; --amber:#d97706;
+    --accent:#14506b;
+    --border:#e7eaee;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f0f2f5;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;-webkit-font-smoothing:antialiased}
+  .hint{font-size:12px;color:var(--ink3);margin-bottom:18px;letter-spacing:.3px}
+
+  /* Feishu chat bubble container */
+  .chat{width:420px;max-width:100%}
+  .sender{display:flex;align-items:center;gap:8px;margin:0 0 6px 4px}
+  .sender .av{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#1e88a8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+  .sender .nm{font-size:13px;font-weight:600;color:var(--ink)}
+  .sender .tm{font-size:11px;color:var(--ink3);margin-left:4px}
+
+  /* interactive card */
+  .card{background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.08);border:0.5px solid rgba(0,0,0,.06)}
+  .hd{padding:13px 16px;color:#fff;display:flex;align-items:center;justify-content:space-between}
+  .hd.green{background:linear-gradient(90deg,#16a34a,#1ba85a)}
+  .hd .ti{font-size:14.5px;font-weight:700;letter-spacing:.2px}
+  .hd .dt{font-size:11.5px;opacity:.9}
+  .body{padding:13px 16px}
+  .md{font-size:13.5px;color:var(--ink);line-height:1.55}
+  .md b{font-weight:700}
+  .sub-md{font-size:12px;color:var(--ink2);margin-top:4px}
+  .fields{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:13px;padding-top:12px;border-top:1px solid #f0f2f5}
+  .field .k{font-size:11px;color:var(--ink3);letter-spacing:.3px}
+  .field .v{font-size:19px;font-weight:700;margin-top:2px;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+  .field .v .u{font-size:12px;color:var(--ink3);font-weight:500}
+  .tasks{margin-top:13px;font-size:12.5px;color:var(--ink2);line-height:1.9}
+  .tasks .tk{display:inline-flex;align-items:center;gap:4px;margin-right:14px}
+  .tasks .d{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .tasks .dg{background:var(--green)} .tasks .da{background:var(--amber)}
+  .tasks b{color:var(--ink);font-weight:600;margin-left:2px}
+  .warn-line{margin-top:10px;font-size:12px;color:var(--amber);background:#fff8ec;padding:8px 10px;border-radius:7px;border-left:2px solid var(--amber)}
+  hr{border:0;border-top:1px solid #f0f2f5;margin:13px 0 11px}
+  .note{font-size:11px;color:var(--ink3);line-height:1.6}
+  .note .fresh{color:var(--ink2);font-weight:600}
+  .actions{display:flex;gap:10px;padding:0 16px 14px}
+  .btn{flex:1;text-align:center;padding:9px 0;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.default{background:#fff;color:var(--ink2)}
+  .urlhint{font-size:10.5px;color:var(--ink3);margin-top:9px;text-align:center;word-break:break-all}
+
+  .legend{margin-top:26px;font-size:11.5px;color:var(--ink3);line-height:1.7;text-align:center;max-width:420px}
+  .legend b{color:var(--ink2)}
+</style>
+</head>
+<body>
+
+<div class="hint">⬇ 模拟飞书群内交互卡片（AI 投研测试 群）</div>
+
+<div class="chat">
+  <div class="sender">
+    <div class="av">观</div>
+    <div class="nm">推送系统观测台</div>
+    <div class="tm">今天 11:47</div>
+  </div>
+
+  <div class="card">
+    <div class="hd green">
+      <div class="ti">📡 推送系统日报 · 2026-08-12</div>
+      <div class="dt">系统健康</div>
+    </div>
+    <div class="body">
+      <div class="md"><b>整体健康</b> — 告警任务有 1 次失败，建议关注送达反查</div>
+      <div class="sub-md">今日 4 个任务共推送 37 条，成功率 97.3%</div>
+
+      <div class="fields">
+        <div class="field"><div class="k">总推送</div><div class="v">37</div></div>
+        <div class="field"><div class="k">成功率</div><div class="v">97.3<span class="u">%</span></div></div>
+        <div class="field"><div class="k">健康度</div><div class="v">94<span class="u">/100</span></div></div>
+      </div>
+
+      <div class="tasks">
+        <span class="tk"><span class="d dg"></span>研究管线 <b>96</b></span>
+        <span class="tk"><span class="d dg"></span>具身刷新 <b>93</b></span><br>
+        <span class="tk"><span class="d dg"></span>screener <b>95</b></span>
+        <span class="tk"><span class="d da"></span>告警 <b>80（预警）</b></span>
+      </div>
+
+      <div class="warn-line">🟠 告警：1 条发送后送达反查未确认（飞书接受但群内不可见），已重试 1 次</div>
+
+      <hr>
+      <div class="note">
+        <span class="fresh">⏱ 数据更新时点：2026-08-12 11:47:49</span><br>
+        指标来源：result.json / PG delivery 表 / 服务日志 · 不构成投资建议
+      </div>
+    </div>
+    <div class="actions">
+      <div class="btn primary">📊 查看仪表盘（含历史）</div>
+      <div class="btn default">🩺 异常诊断</div>
+    </div>
+    <div class="urlhint" style="padding:0 16px 14px">按钮跳转：推送系统观测台?date=2026-08-12（直达当日页，可切历史）</div>
+  </div>
+</div>
+
+<div class="legend">
+  <b>卡片设计要点</b>：header 色随系统健康度变（绿/橙/红）· 结论先行一句话 · 3 字段 KPI · 4 任务状态点 · 异常行单独高亮 · <b>数据更新时点显眼标注</b> · 主按钮直带 <code>?date=</code> 跳仪表盘当日页
+</div>
+
+</body>
+</html>

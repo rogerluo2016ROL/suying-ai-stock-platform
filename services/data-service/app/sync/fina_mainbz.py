@@ -98,7 +98,7 @@ def sync_fina_mainbz(days_back: int = 120) -> dict:
                 )
                 pg_written += pg_w
             except Exception as e:
-                logger.debug("PG write fina_mainbz skipped: %s", e)
+                logger.warning("PG write fina_mainbz failed: %s", e)
 
             # ── SQLite 写入 (fallback) ──
             if SQLITE_FALLBACK_ENABLED:

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from .lark_client import send_card_to_chat, _send_card_via_lark_cli, get_tenant_access_token, _send_text_to_chat_via_lark_cli, _split_streaming_text, _multipart_body, upload_lark_image, send_image_to_chat
 
 
 _TENANT_TOKEN: dict[str, Any] = {"token": None, "expires_at": 0.0}
@@ -3559,34 +3560,112 @@ def _format_group_reply(result: dict[str, Any], doc: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def get_tenant_access_token() -> str:
-    """Get and cache Feishu tenant access token for bot sending."""
-    now = time.time()
-    if _TENANT_TOKEN["token"] and now < float(_TENANT_TOKEN["expires_at"]):
-        return str(_TENANT_TOKEN["token"])
-
-    app_id = os.environ.get("LARK_APP_ID", "").strip()
-    app_secret = os.environ.get("LARK_APP_SECRET", "").strip()
-    if not app_id or not app_secret:
-        raise RuntimeError("missing LARK_APP_ID or LARK_APP_SECRET")
-
-    body = json.dumps({"app_id": app_id, "app_secret": app_secret}).encode("utf-8")
-    req = urllib.request.Request(
-        "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    if data.get("code") != 0:
-        raise RuntimeError(f"tenant token failed: {data}")
-    _TENANT_TOKEN["token"] = data["tenant_access_token"]
-    _TENANT_TOKEN["expires_at"] = now + int(data.get("expire", 7200)) - 120
-    return str(_TENANT_TOKEN["token"])
+def _research_dashboard_url(model: str, date: str) -> str:
+    """读取妙搭内容仪表盘链接(优先 env,回退 configs/push_observability.json)。"""
+    base = os.environ.get("RESEARCH_DASHBOARD_URL", "").strip()
+    if not base:
+        try:
+            import pathlib, json as _json
+            cfg = pathlib.Path(__file__).resolve().parents[3] / "configs" / "push_observability.json"
+            base = (_json.loads(cfg.read_text(encoding="utf-8")).get("dashboard_url") or "").strip()
+        except Exception:
+            base = ""
+    if not base:
+        return ""
+    sep = "&" if "?" in base else "?"
+    return f"{base}/research{sep}model={model}&date={date}"
 
 
-def send_text_to_chat(chat_id: str, text: str, *, idempotency_key: str | None = None) -> dict[str, Any]:
+def _build_group_card(result: dict[str, Any], doc: dict[str, Any],
+                      *, fallback_extra: str = "", candidate_extra: str = "") -> dict[str, Any]:
+    """把一次研究 run 的结果构建成飞书交互卡片(替代纯文本群消息)。
+
+    借鉴观测面板设计语言:header 色=大盘温度、结论先行、KPI、板块标签、Top榜、
+    数据时点 + 免责,按钮跳内容仪表盘 / 飞书文档。
+    """
+    mode = result.get("mode") or (result.get("pipeline") or {}).get("model_key") or ""
+    is_cb = bool(mode in CB_AUCTION_MODES) or bool(result.get("bonds"))
+    is_brief = bool(mode in MORNING_BRIEF_MODES)
+    trade_date = result.get("trade_date") or "latest"
+    time_slot = result.get("time_slot") or ""
+    title = MODEL_TITLES.get(mode, "选股分析报告")
+    picks = result.get("picks") or []
+    candidates = result.get("candidate_picks") or []
+
+    # 市场温度 → header 配色
+    strength = result.get("market_strength") or {}
+    med = strength.get("median_pct")
+    if med is None:
+        template, temp_cn = "grey", "—"
+    elif med >= 0.5:
+        template, temp_cn = "green", f"偏强(中位{_fmt_pct(med)})"
+    elif med >= 0:
+        template, temp_cn = "yellow", f"震荡(中位{_fmt_pct(med)})"
+    else:
+        template, temp_cn = "red", f"偏弱(中位{_fmt_pct(med)})"
+
+    # 板块标签(Top 4)
+    sec_map: dict[str, list] = {}
+    for p in (picks or candidates):
+        s = ((p.get("sector_resonance") or {}).get("sector") or p.get("industry") or p.get("sector") or "其他")
+        sec_map.setdefault(s, []).append(p)
+    sectors = sorted(sec_map.items(), key=lambda kv: len(kv[1]), reverse=True)[:4]
+    sector_line = "  ".join(f"[{s} {len(pl)}只]" for s, pl in sectors) or "—"
+
+    # Top 5 文本
+    top_lines = []
+    src = picks if picks else candidates
+    for i, p in enumerate(src[:5], 1):
+        if is_cb:
+            top_lines.append(f"{i}. {p.get('code')} {p.get('name')} | 正股 {p.get('stk_name') or '-'} | 质量档 {p.get('quality_tier') or '-'} | 题材分 {_fmt_score(p.get('theme_score') or p.get('score'))}")
+        else:
+            top_lines.append(f"{i}. {p.get('code')} {p.get('name')} | {_fmt_pct(_pick_gain(p))} | 评分 {_fmt_score(p.get('total_score') or p.get('score'))}")
+    if not top_lines:
+        top_lines = [result.get("no_result_reason") or "本次没有标的主买入选,见文档候选池"]
+
+    conclusion = f"{'选债' if is_cb else '选股' if not is_brief else '早报'} {trade_date} {time_slot} · 主买 {len(picks)} 只 · 大盘 {temp_cn} · 主线 {sectors[0][0] if sectors else '—'}"
+    fields = [
+        {"is_short": True, "text": {"tag": "lark_md", "content": f"**入选**\n{len(picks)}"}},
+        {"is_short": True, "text": {"tag": "lark_md", "content": f"**大盘**\n{temp_cn}"}},
+    ]
+    if strength.get("advancers") is not None:
+        fields.append({"is_short": True, "text": {"tag": "lark_md", "content": f"**涨/跌**\n{strength.get('advancers','-')}/{strength.get('decliners','-')}"}})
+    else:
+        fields.append({"is_short": True, "text": {"tag": "lark_md", "content": f"**主线**\n{sectors[0][0] if sectors else '—'}"}})
+
+    elements = [
+        {"tag": "div", "text": {"tag": "lark_md", "content": f"**{title}**\n{conclusion}"}},
+        {"tag": "div", "fields": fields},
+        {"tag": "div", "text": {"tag": "lark_md", "content": f"板块共振:{sector_line}"}},
+        {"tag": "div", "text": {"tag": "lark_md", "content": ("候选 Top 5(主买为空):\n" if not picks else "Top 5 入选:\n") + "\n".join(top_lines)}},
+    ]
+    if fallback_extra:
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": fallback_extra[:300]}})
+    elements.append({"tag": "hr"})
+    elements.append({"tag": "note", "elements": [{"tag": "plain_text",
+        "content": f"⏱ 数据时点:{strength.get('snapshot_time') or trade_date} · 评分=趋势+量能+资金+基本面 · 不构成投资建议"}]})
+    actions = []
+    dash = _research_dashboard_url((result.get("pipeline") or {}).get("model_key") or mode, trade_date)
+    if dash:
+        actions.append({"tag": "button", "text": {"tag": "plain_text", "content": "📊 查看仪表盘(含历史)"}, "type": "primary", "url": dash})
+    if doc.get("url"):
+        actions.append({"tag": "button", "text": {"tag": "plain_text", "content": "📄 飞书文档"}, "type": "default", "url": doc["url"]})
+    if actions:
+        elements.append({"tag": "action", "actions": actions})
+
+    return {"config": {"wide_screen_mode": True},
+            "header": {"title": {"tag": "plain_text", "content": f"{title} · {trade_date} {time_slot}".strip()},
+                       "template": template},
+            "elements": elements}
+
+
+
+
+
+
+
+
+def _send_text_to_chat_impl(chat_id: str, text: str, *, idempotency_key: str | None = None) -> dict[str, Any]:
     if not os.environ.get("LARK_APP_ID", "").strip() or not os.environ.get("LARK_APP_SECRET", "").strip():
         return _send_text_to_chat_via_lark_cli(chat_id, text, idempotency_key=idempotency_key)
 
@@ -3616,60 +3695,40 @@ def send_text_to_chat(chat_id: str, text: str, *, idempotency_key: str | None = 
     return data
 
 
-def _send_text_to_chat_via_lark_cli(chat_id: str, text: str, *, idempotency_key: str | None = None) -> dict[str, Any]:
-    root = Path(__file__).resolve().parents[3]
-    cmd = [
-        "lark-cli",
-        "im",
-        "+messages-send",
-        "--as",
-        "bot",
-        "--chat-id",
-        chat_id,
-        "--text",
-        text,
-        "--json",
-    ]
-    if idempotency_key:
-        cmd.extend(["--idempotency-key", idempotency_key])
-    proc = subprocess.run(
-        cmd,
-        cwd=root,
-        text=True,
-        capture_output=True,
-        timeout=int(os.environ.get("LARK_CLI_SEND_TIMEOUT_SEC", "30")),
-    )
-    if proc.returncode != 0:
-        detail = (proc.stderr or proc.stdout or "").strip()[-1200:]
-        raise RuntimeError(f"send message via lark-cli failed: {detail or proc.returncode}")
+
+
+
+
+def _record_screener_metric(ok: bool, latency_ms: int, reason: str | None) -> None:
+    """Best-effort: 累加本次群消息发送指标进 push_metrics。绝不抛错。"""
     try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return {"code": 0, "raw": proc.stdout.strip()}
+        import sys as _sys
+        from pathlib import Path as _Path
+        _tools_dir = str(_Path(__file__).resolve().parents[3] / "tools")
+        if _tools_dir not in _sys.path:
+            _sys.path.insert(0, _tools_dir)
+        from push_telemetry import record as _record
+        _record(
+            "screener",
+            push=1, success=1 if ok else 0, failure=0 if ok else 1,
+            latency_ms_p95=latency_ms or None, target_chats=1,
+            failure_reasons=[reason] if reason else None,
+        )
+    except Exception:
+        pass
 
 
-def _split_streaming_text(text: str, max_chars: int = 700) -> list[str]:
-    text = (text or "").strip()
-    if not text:
-        return []
-    chunks: list[str] = []
-    current = ""
-    for paragraph in re.split(r"(\n+)", text):
-        if not paragraph:
-            continue
-        candidate = current + paragraph
-        if len(candidate) <= max_chars:
-            current = candidate
-            continue
-        if current.strip():
-            chunks.append(current.strip())
-        current = paragraph
-        while len(current) > max_chars:
-            chunks.append(current[:max_chars].strip())
-            current = current[max_chars:]
-    if current.strip():
-        chunks.append(current.strip())
-    return chunks
+def send_text_to_chat(chat_id: str, text: str, *, idempotency_key: str | None = None) -> dict[str, Any]:
+    """发送文本到群 —— 包装 _impl,记录推送观测指标(best-effort)。"""
+    import time as _time
+    _t0 = _time.time()
+    try:
+        data = _send_text_to_chat_impl(chat_id, text, idempotency_key=idempotency_key)
+        _record_screener_metric(True, int((_time.time() - _t0) * 1000), None)
+        return data
+    except Exception as exc:
+        _record_screener_metric(False, int((_time.time() - _t0) * 1000), str(exc))
+        raise
 
 
 def send_streaming_text_to_chat(chat_id: str, text: str) -> list[dict[str, Any]]:
@@ -3685,85 +3744,10 @@ def send_streaming_text_to_chat(chat_id: str, text: str) -> list[dict[str, Any]]
     return responses
 
 
-def _multipart_body(fields: dict[str, str], files: dict[str, tuple[str, bytes, str]]) -> tuple[bytes, str]:
-    boundary = f"----suying-lark-{int(time.time() * 1000)}"
-    chunks: list[bytes] = []
-    for name, value in fields.items():
-        chunks.extend(
-            [
-                f"--{boundary}\r\n".encode(),
-                f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode(),
-                str(value).encode("utf-8"),
-                b"\r\n",
-            ]
-        )
-    for name, (filename, content, content_type) in files.items():
-        chunks.extend(
-            [
-                f"--{boundary}\r\n".encode(),
-                f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'.encode(),
-                f"Content-Type: {content_type}\r\n\r\n".encode(),
-                content,
-                b"\r\n",
-            ]
-        )
-    chunks.append(f"--{boundary}--\r\n".encode())
-    return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
 
 
-def upload_lark_image(path: Path) -> str:
-    token = get_tenant_access_token()
-    content = path.read_bytes()
-    body, content_type = _multipart_body(
-        {"image_type": "message"},
-        {"image": (path.name, content, "image/png")},
-    )
-    req = urllib.request.Request(
-        "https://open.feishu.cn/open-apis/im/v1/images",
-        data=body,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": content_type},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"upload image failed: {exc.code} {detail}") from exc
-    if data.get("code") != 0:
-        raise RuntimeError(f"upload image failed: {data}")
-    image_key = ((data.get("data") or {}).get("image_key")) or ""
-    if not image_key:
-        raise RuntimeError(f"upload image missing image_key: {data}")
-    return str(image_key)
 
 
-def send_image_to_chat(chat_id: str, path: Path) -> dict[str, Any]:
-    token = get_tenant_access_token()
-    image_key = upload_lark_image(path)
-    body = json.dumps(
-        {
-            "receive_id": chat_id,
-            "msg_type": "image",
-            "content": json.dumps({"image_key": image_key}, ensure_ascii=False),
-        },
-        ensure_ascii=False,
-    ).encode("utf-8")
-    req = urllib.request.Request(
-        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id",
-        data=body,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"send image failed: {exc.code} {detail}") from exc
-    if data.get("code") != 0:
-        raise RuntimeError(f"send image failed: {data}")
-    return data
 
 
 def handle_lark_message(payload: dict[str, Any]) -> dict[str, Any]:

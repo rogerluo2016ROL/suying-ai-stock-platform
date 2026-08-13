@@ -14,18 +14,21 @@
 #
 # 服务端口 (default):
 #   8080 — api-gateway          (统一网关)
-#   8001 — screener-service     (选股+排序, 12模型)
+#   8001 — screener-service     (选股+排序, 20模型)
 #   8002 — prediction-service   (Kronos K线预测)
 #   8003 — strategy-service     (LLM方案生成+自动交易)
 #   8004 — signal-service       (交易信号, 50维)
 #   8005 — alert-service        (预警提醒)
 #   8006 — trade-service        (模拟+实盘交易)
 #   8007 — backtest-service     (回测+IC校准)
+#   8008 — training-service     (模型训练+注册)
 #   8009 — diagnosis-service    (五维个股诊断)
 #   8010 — data-service         (后台数据采集+定时调度, 常驻)
 #   9001 — backend              (JWT认证+用户管理)
+#   3000 — frontend             (React 前端)
 
-version: "3.8"
+# 显式项目名：此前缺省取目录名 "docker"，与 astron-rpa 的 docker/ 目录撞名导致容器组混排
+name: suying-dev
 
 services:
   # ── 基础设施 ──
@@ -85,6 +88,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   frontend:
@@ -95,11 +104,17 @@ services:
       - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       api-gateway:
-        condition: service_started
+        condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
       screener-service:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Backend (认证+用户管理)
@@ -122,6 +137,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9001/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Screener (选股)
@@ -148,6 +169,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Data (后台数据采集 + 定时调度, 常驻 — 竞价 9:25 / rt_min / 盘后全量 / 凌晨回补)
@@ -182,6 +209,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Prediction (Kronos K线预测)
@@ -202,6 +235,12 @@ services:
     volumes:
       - ../Kronos/outputs/models:/app/Kronos/outputs/models:ro
       - model_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Strategy (方案管理+自动交易引擎)
@@ -222,6 +261,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Signal (交易信号)
@@ -240,7 +285,13 @@ services:
       postgres:
         condition: service_healthy
       data-service:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8004/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Alert (预警提醒)
@@ -257,6 +308,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Trade (模拟/实盘交易)
@@ -276,6 +333,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8006/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Backtest (回测+IC校准)
@@ -292,6 +355,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8007/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Training (模型训练 + 模型注册)
@@ -314,6 +383,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8008/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
   # Diagnosis (五维个股诊断)
@@ -331,8 +406,17 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8009/api/v1/health/live', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
 
 volumes:
+  # 钉住旧 project=docker 时代的卷名，避免项目改名后挂到空卷丢数据
   pgdata:
+    name: docker_pgdata
   model_cache:
+    name: docker_model_cache
