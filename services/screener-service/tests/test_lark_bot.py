@@ -479,7 +479,7 @@ def test_group_message_without_mention_is_ignored(monkeypatch):
 
 
 def test_send_text_falls_back_to_lark_cli_without_app_credentials(monkeypatch):
-    captured = {}
+    captured = []
 
     class FakeProc:
         returncode = 0
@@ -487,7 +487,7 @@ def test_send_text_falls_back_to_lark_cli_without_app_credentials(monkeypatch):
         stderr = ""
 
     def fake_run(cmd, **kwargs):
-        captured["cmd"] = cmd
+        captured.append(cmd)
         return FakeProc()
 
     monkeypatch.delenv("LARK_APP_ID", raising=False)
@@ -496,24 +496,27 @@ def test_send_text_falls_back_to_lark_cli_without_app_credentials(monkeypatch):
 
     result = lark_bot.send_text_to_chat("oc_ok", "测试消息")
 
+    # send_text_to_chat 现在还会触发 push_telemetry 的 base 指标写入，故从所有调用里找 im 发送命令
+    im_cmd = next(c for c in captured if c[:3] == ["lark-cli", "im", "+messages-send"])
     assert result["code"] == 0
-    assert captured["cmd"][:5] == ["lark-cli", "im", "+messages-send", "--as", "bot"]
-    assert "--chat-id" in captured["cmd"]
-    assert captured["cmd"][captured["cmd"].index("--chat-id") + 1] == "oc_ok"
-    assert captured["cmd"][captured["cmd"].index("--text") + 1] == "测试消息"
+    assert im_cmd[:5] == ["lark-cli", "im", "+messages-send", "--as", "bot"]
+    assert "--chat-id" in im_cmd
+    assert im_cmd[im_cmd.index("--chat-id") + 1] == "oc_ok"
+    assert im_cmd[im_cmd.index("--text") + 1] == "测试消息"
 
 
 def test_send_text_passes_feishu_idempotency_uuid_to_cli(monkeypatch):
-    captured = {}
+    captured = []
     monkeypatch.delenv("LARK_APP_ID", raising=False)
     monkeypatch.delenv("LARK_APP_SECRET", raising=False)
     class Proc:
         returncode = 0
         stdout = '{"code":0}'
         stderr = ""
-    monkeypatch.setattr(lark_bot.subprocess, "run", lambda cmd, **_kwargs: captured.update(cmd=cmd) or Proc())
+    monkeypatch.setattr(lark_bot.subprocess, "run", lambda cmd, **_kwargs: captured.append(cmd) or Proc())
     lark_bot.send_text_to_chat("oc_ok", "测试", idempotency_key="123e4567-e89b-12d3-a456-426614174000")
-    assert captured["cmd"][captured["cmd"].index("--idempotency-key") + 1] == "123e4567-e89b-12d3-a456-426614174000"
+    im_cmd = next(c for c in captured if c[:3] == ["lark-cli", "im", "+messages-send"])
+    assert im_cmd[im_cmd.index("--idempotency-key") + 1] == "123e4567-e89b-12d3-a456-426614174000"
 
 
 def test_handle_message_respects_allowlists(monkeypatch):

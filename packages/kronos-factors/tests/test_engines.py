@@ -99,9 +99,11 @@ def test_backtest_result_dataclass():
     assert r.sharpe_ratio == 1.5
 
 
-def test_pg_adapter_creation():
+def test_pg_adapter_creation(monkeypatch):
     from kronos_factors.pg_adapter import create_pg_adapter
-    # Without PG URL, should return None
+    # Without PG URL, should return None（隔离套件其他测试可能设置的 KRONOS_PG_URL）
+    monkeypatch.delenv("KRONOS_PG_URL", raising=False)
+    monkeypatch.delenv("KRONOS_SQLITE_PATH", raising=False)
     adapter = create_pg_adapter("")
     assert adapter is None
 
@@ -113,6 +115,7 @@ def test_sqlite_fallback_requires_explicit_opt_in(monkeypatch, tmp_path):
     sqlite_path.touch()
     monkeypatch.setenv("KRONOS_SQLITE_PATH", str(sqlite_path))
     monkeypatch.delenv("KRONOS_ALLOW_SQLITE_FALLBACK", raising=False)
+    monkeypatch.delenv("KRONOS_PG_URL", raising=False)
 
     assert create_pg_adapter("") is None
 
@@ -124,6 +127,7 @@ def test_sqlite_fallback_can_be_enabled_for_legacy_tools(monkeypatch, tmp_path):
     sqlite_path.touch()
     monkeypatch.setenv("KRONOS_SQLITE_PATH", str(sqlite_path))
     monkeypatch.setenv("KRONOS_ALLOW_SQLITE_FALLBACK", "true")
+    monkeypatch.delenv("KRONOS_PG_URL", raising=False)
 
     adapter = create_pg_adapter("")
     assert adapter is not None

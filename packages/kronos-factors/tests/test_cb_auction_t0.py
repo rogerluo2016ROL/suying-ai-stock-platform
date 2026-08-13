@@ -828,7 +828,7 @@ def test_cli_write_outputs_creates_json_and_csv(tmp_path):
     import importlib.util
     from pathlib import Path
 
-    tool_path = Path("tools/cb_auction_t0_picks.py")
+    tool_path = Path(__file__).resolve().parents[3] / "tools" / "cb_auction_t0_picks.py"
     spec = importlib.util.spec_from_file_location("cb_auction_t0_picks", tool_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -896,7 +896,7 @@ def test_cli_rejects_negative_top_n_before_running_engine(tmp_path, monkeypatch,
     import importlib.util
     from pathlib import Path
 
-    tool_path = Path("tools/cb_auction_t0_picks.py")
+    tool_path = Path(__file__).resolve().parents[3] / "tools" / "cb_auction_t0_picks.py"
     spec = importlib.util.spec_from_file_location("cb_auction_t0_picks_negative", tool_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -919,7 +919,7 @@ def test_cli_model_v2_uses_optimized_engine(tmp_path, monkeypatch, capsys):
     import json
     from pathlib import Path
 
-    tool_path = Path("tools/cb_auction_t0_picks.py")
+    tool_path = Path(__file__).resolve().parents[3] / "tools" / "cb_auction_t0_picks.py"
     spec = importlib.util.spec_from_file_location("cb_auction_t0_picks_v2", tool_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -956,7 +956,7 @@ def test_cli_model_v21_uses_steady_engine(tmp_path, monkeypatch, capsys):
     import json
     from pathlib import Path
 
-    tool_path = Path("tools/cb_auction_t0_picks.py")
+    tool_path = Path(__file__).resolve().parents[3] / "tools" / "cb_auction_t0_picks.py"
     spec = importlib.util.spec_from_file_location("cb_auction_t0_picks_v21", tool_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

@@ -75,10 +75,11 @@ class TestChainCandidatesEndpoint:
         for candidate in data["candidates"]:
             gross_margin = candidate.get("gross_margin", 0)
             dim_scores = candidate.get("dimension_scores", {})
-            profit_score = dim_scores.get("profit", 0)
-            # High profit: gross_margin >= 50% OR profit_score >= 10
-            if gross_margin or profit_score:
-                assert gross_margin >= 50.0 or profit_score >= 10.0, \
+            profit_dim = dim_scores.get("profit", 0)          # 0-10 主阈值
+            snap_profit = candidate.get("profit_score", 0)    # 0-100 快照回退阈值
+            # High profit: gross_margin >= 50% OR profit_dim >= 10 OR snap_profit >= 75 (回退)
+            if gross_margin or profit_dim or snap_profit:
+                assert (gross_margin >= 50.0 or profit_dim >= 10.0 or snap_profit >= 75.0), \
                     f"Candidate {candidate.get('code')} should have high profit"
 
     def test_ac2_filter_high_moat(self, client):
