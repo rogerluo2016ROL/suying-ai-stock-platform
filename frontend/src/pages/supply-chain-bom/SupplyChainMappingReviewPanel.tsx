@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Col, Empty, message, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, FileSearchOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons'
 import {
   screenerApi,
@@ -135,7 +136,7 @@ export default function SupplyChainMappingReviewPanel() {
     }
   }
 
-  const hotspotColumns: any[] = [
+  const hotspotColumns: TableColumnsType<NonNullable<SupplyChainMappingQuality['hotspot_nodes']>[number]> = [
     {
       title: '热点节点',
       width: 180,
@@ -160,7 +161,7 @@ export default function SupplyChainMappingReviewPanel() {
     },
   ]
 
-  const queueColumns: any[] = [
+  const queueColumns: TableColumnsType<SupplyChainMappingReviewItem> = [
     {
       title: '公司',
       width: 150,

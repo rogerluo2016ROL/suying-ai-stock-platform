@@ -1,4 +1,5 @@
 import { Button, Empty, Space, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { ApartmentOutlined } from '@ant-design/icons'
 import type { SupplyChainMappingQuality } from '../../api/client'
 import type { BomNode, SelectedNodeThesis, ThemeRow } from './types'
@@ -36,7 +37,7 @@ export default function SupplyChainNodeNavigator({
   const selectedTheme = themes.find(theme => theme.theme_id === selectedThemeId)
   const selectedNode = nodes.find(node => node.node_id === selectedNodeId)
 
-  const columns: any[] = [
+  const columns: TableColumnsType<BomNode> = [
     {
       title: '节点',
       render: (_: unknown, row: BomNode) => (

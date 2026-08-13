@@ -10,6 +10,8 @@ import type {
   RiskVerdictsResponse,
   DecisionContextQuery,
   DecisionContextsResponse,
+  CircuitBreakerStatusResponse,
+  AuditLogsResponse,
 } from '../../types'
 import type { BrokerConnectRequest } from '../../types'
 
@@ -47,7 +49,8 @@ export const tradeApi = {
   // ── Risk config & circuit breaker ──
   getRiskConfig: () => api.get('/trade/risk-config'),
 
-  getCircuitBreakerStatus: () => api.get('/trade/circuit-breaker/status'),
+  getCircuitBreakerStatus: (): Promise<AxiosResponse<CircuitBreakerStatusResponse>> =>
+    api.get('/trade/circuit-breaker/status'),
 
   // ── Audit logs ──
   getAuditLogs: (params: {
@@ -58,7 +61,7 @@ export const tradeApi = {
     action_type?: string
     stock_code?: string
     operator?: string
-  }) => api.get('/trade/audit-logs', { params }),
+  }): Promise<AxiosResponse<AuditLogsResponse>> => api.get('/trade/audit-logs', { params }),
 
   exportAuditLogs: (params: {
     start_date?: string

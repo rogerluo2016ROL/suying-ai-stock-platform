@@ -1,4 +1,5 @@
 import { Button, Checkbox, Empty, Select, Space, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { DownloadOutlined, EyeOutlined } from '@ant-design/icons'
 import { useMemo, useState } from 'react'
 import type { CandidateCompany } from './types'
@@ -50,7 +51,7 @@ export default function SupplyChainCandidateGrid({
   )
   const selectedCandidates = candidates.filter(item => selectedCodes.includes(item.code))
 
-  const columns: any[] = [
+  const columns: TableColumnsType<CandidateCompany> = [
     {
       title: '',
       width: 54,

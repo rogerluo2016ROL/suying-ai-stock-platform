@@ -3,6 +3,7 @@
 
 import { useMemo } from 'react'
 import { Button, Col, Row, Space, Statistic, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { ApartmentOutlined } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import type { ChainDeconstructResponse } from '../../api/client'
@@ -62,7 +63,7 @@ export default function ChainDeconstructSection({
   onSelectNode,
   onOverlaysChange,
 }: ChainDeconstructSectionProps) {
-  const themeColumns: any[] = [
+  const themeColumns: TableColumnsType<ThemeRow> = [
     {
       title: '政策主题',
       dataIndex: 'name',

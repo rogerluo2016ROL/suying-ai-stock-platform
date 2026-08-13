@@ -15,7 +15,7 @@ export interface RiskConfig {
 
 export interface CircuitBreakerState {
   account_id: string
-  status: 'NORMAL' | 'TRIGGERED'
+  status: string
   triggered_at: string | null
   daily_pnl: number
   initial_capital: number

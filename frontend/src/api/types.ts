@@ -667,6 +667,52 @@ export interface DecisionContextsResponse {
   records: DecisionContextRecord[];
 }
 
+/** 熔断器状态。 */
+export interface CircuitBreakerStatus {
+  account_id: string;
+  status: string;
+  triggered_at: string | null;
+  daily_pnl: number;
+  initial_capital: number;
+  daily_loss_pct: number;
+  threshold_pct: number;
+  cooldown_minutes: number;
+  can_trade: boolean;
+  date: string;
+}
+
+export interface CircuitBreakerStatusResponse {
+  breakers: CircuitBreakerStatus[];
+}
+
+/** 审计日志记录（风控/审计多页面视角的字段并集 + 索引签名）。 */
+export interface AuditLogRecord {
+  id?: string | number;
+  user_id?: number;
+  action?: string;
+  mode?: string;
+  symbol?: string;
+  order_id?: string;
+  created_at?: string;
+  event_type?: string;
+  side?: string;
+  detail?: string | Record<string, unknown>;
+  operator?: string;
+  ip_address?: string;
+  quantity?: number;
+  price?: number | string;
+  filled_qty?: number;
+  error_message?: string;
+  [key: string]: unknown;
+}
+
+export interface AuditLogsResponse {
+  total: number;
+  records?: AuditLogRecord[];
+  items?: AuditLogRecord[];
+  logs?: AuditLogRecord[];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // P0 公共对象契约
 // ═══════════════════════════════════════════════════════════════════════════
@@ -785,18 +831,49 @@ export interface BacktestResult {
   };
 }
 
-/** 回测运行响应 */
+/** 回测窗口明细（CB 等按窗口前向回测模式）。 */
+export interface BacktestWindowDetail {
+  window: number;
+  start_date?: string;
+  end_date?: string;
+  avg_return_pct?: number;
+  hit_rate_pct?: number;
+  picks?: number;
+  ic?: number;
+  excess_return?: number;
+}
+
+/** 回测汇总统计。 */
+export interface BacktestSummary {
+  avg_excess_return?: number;
+  icir?: number;
+  avg_hit_rate?: number;
+  total_windows?: number;
+}
+
+/** 回测策略对比项。 */
+export interface BacktestStrategyComparison {
+  strategy: string;
+  avg_return?: number;
+  samples?: number;
+  period?: string;
+}
+
+/** 回测运行响应（不同 mode 返回 results / details 之一，附 summary）。 */
 export interface BacktestRunResponse {
-  results: BacktestResult[];
-  windows: number;
-  elapsed: number;
+  results?: BacktestResult[];
+  details?: BacktestWindowDetail[];
+  summary?: BacktestSummary;
+  windows?: number;
+  elapsed?: number;
   best_strategy?: string;
   recommendation?: string;
 }
 
-/** 回测对比响应 */
+/** 回测对比响应（comparison / strategies 之一）。 */
 export interface BacktestCompareResponse {
-  comparison: BacktestResult[];
+  comparison?: BacktestResult[];
+  strategies?: BacktestStrategyComparison[];
   winner?: string;
   summary?: string;
 }

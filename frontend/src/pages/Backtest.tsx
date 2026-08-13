@@ -14,7 +14,7 @@ import {
   SideRail,
 } from '../components/prototype'
 import { backtestApi, tradeApi } from '../api/client'
-import type { RiskVerdictRecord } from '../api/types'
+import type { RiskVerdictRecord, DecisionContextRecord, BacktestRunResponse, BacktestCompareResponse } from '../api/types'
 
 interface ReviewRow {
   orderId: string
@@ -46,9 +46,10 @@ function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-function rowsFromRunResult(data: any): BacktestViewRow[] {
-  if (Array.isArray(data?.results)) {
-    return data.results.map((item: any) => ({
+function rowsFromRunResult(data: BacktestRunResponse | null): BacktestViewRow[] {
+  if (!data) return []
+  if (Array.isArray(data.results)) {
+    return data.results.map((item) => ({
       id: item.strategy_id,
       name: item.strategy_name || item.strategy_id,
       totalReturn: item.total_return,
@@ -58,8 +59,8 @@ function rowsFromRunResult(data: any): BacktestViewRow[] {
       totalTrades: item.total_trades,
     }))
   }
-  if (Array.isArray(data?.details)) {
-    return data.details.map((item: any) => ({
+  if (Array.isArray(data.details)) {
+    return data.details.map((item) => ({
       id: `window-${item.window}`,
       name: `窗口 ${item.window}: ${item.start_date || '--'} ~ ${item.end_date || '--'}`,
       totalReturn: item.avg_return_pct,
@@ -69,7 +70,7 @@ function rowsFromRunResult(data: any): BacktestViewRow[] {
       detail: `IC ${item.ic ?? '--'} / 超额 ${formatPct(item.excess_return)}`,
     }))
   }
-  if (data?.summary) {
+  if (data.summary) {
     return [{
       id: 'summary',
       name: '回测汇总',
@@ -82,9 +83,10 @@ function rowsFromRunResult(data: any): BacktestViewRow[] {
   return []
 }
 
-function rowsFromCompareResult(data: any): BacktestViewRow[] {
-  if (Array.isArray(data?.comparison)) {
-    return data.comparison.map((item: any) => ({
+function rowsFromCompareResult(data: BacktestCompareResponse | null): BacktestViewRow[] {
+  if (!data) return []
+  if (Array.isArray(data.comparison)) {
+    return data.comparison.map((item) => ({
       id: item.strategy_id,
       name: item.strategy_name || item.strategy_id,
       totalReturn: item.total_return,
@@ -93,8 +95,8 @@ function rowsFromCompareResult(data: any): BacktestViewRow[] {
       totalTrades: item.total_trades,
     }))
   }
-  if (Array.isArray(data?.strategies)) {
-    return data.strategies.map((item: any) => ({
+  if (Array.isArray(data.strategies)) {
+    return data.strategies.map((item) => ({
       id: item.strategy,
       name: item.strategy,
       totalReturn: item.avg_return,
@@ -126,14 +128,14 @@ export default function Backtest() {
   const activeTab = useMemo(() => tabs.find(tab => tab.key === active) ?? tabs[0], [active])
   const [reviewRows, setReviewRows] = useState<ReviewRow[]>([])
   const [factorCount, setFactorCount] = useState(0)
-  const [runResult, setRunResult] = useState<any | null>(null)
-  const [compareResult, setCompareResult] = useState<any | null>(null)
+  const [runResult, setRunResult] = useState<BacktestRunResponse | null>(null)
+  const [compareResult, setCompareResult] = useState<BacktestCompareResponse | null>(null)
   const [loadingRun, setLoadingRun] = useState(false)
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     backtestApi.getFactors()
-      .then(response => setFactorCount((response.data as any)?.factors?.length || 0))
+      .then(response => setFactorCount(response.data.factors?.length || 0))
       .catch(() => setFactorCount(0))
   }, [])
 
@@ -164,22 +166,22 @@ export default function Backtest() {
       tradeApi.getDecisionContexts({ page: 1, page_size: 50 }),
     ])
       .then(([ordersResponse, verdictsResponse, contextsResponse]) => {
-        const orders = (ordersResponse.data as any)?.orders || []
-        const verdicts = (verdictsResponse.data as any)?.records || []
-        const contexts = (contextsResponse.data as any)?.records || []
-        const nextRows = orders.map((order: any) => {
+        const orders = ordersResponse.data.orders || []
+        const verdicts = verdictsResponse.data.records || []
+        const contexts = contextsResponse.data.records || []
+        const nextRows = orders.map((order) => {
           const verdict = verdicts.find((item: RiskVerdictRecord) => item.order_id === (order.order_id || order.id))
             || verdicts.find((item: RiskVerdictRecord) => item.decision_context_id === order.decision_context_id)
-            || {}
-          const context = contexts.find((item: any) => item.decision_context_id === (order.decision_context_id || verdict.decision_context_id))
-            || {}
+            || ({} as RiskVerdictRecord)
+          const context = contexts.find((item) => item.decision_context_id === (order.decision_context_id || verdict.decision_context_id))
+            || ({} as DecisionContextRecord)
           return {
-            orderId: order.order_id || order.id || '---',
+            orderId: String(order.order_id || order.id || '---'),
             verdictId: verdict.verdict_id || '---',
             decisionContextId: order.decision_context_id || verdict.decision_context_id || context.decision_context_id || '---',
             planId: order.plan_id || verdict.plan_id || context.plan_id || '---',
             candidateId: order.candidate_id || verdict.candidate_id || context.candidate_id || '---',
-            reason: context.payload?.reason || '等待复盘归因',
+            reason: (context.payload?.reason as string | undefined) || '等待复盘归因',
           }
         })
         setReviewRows(nextRows)

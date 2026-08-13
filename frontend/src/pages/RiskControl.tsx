@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { AlertOutlined, AuditOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { Modal } from 'antd'
 import { signalApi, strategyApi, tradeApi } from '../api/client'
-import type { DecisionContextRecord, Position, RiskVerdictRecord, SignalLiveResponse } from '../api/types'
+import type { DecisionContextRecord, Position, RiskVerdictRecord, SignalLiveResponse, CircuitBreakerStatus, AuditLogRecord } from '../api/types'
 import { P0WorkflowNav } from '../components/layout'
 import {
   DataDomainBadge,
@@ -41,15 +41,6 @@ interface RiskConfig {
   large_order_threshold?: number
 }
 
-interface BreakerStatusView {
-  status?: string
-  daily_loss_pct?: number
-  threshold_pct?: number
-  daily_pnl?: number
-  can_trade?: boolean
-  triggered_at?: string | null
-}
-
 interface StrategyInstance {
   id: string
   name?: string
@@ -60,16 +51,6 @@ interface StrategyInstance {
     daily_max_loss_pct?: number
     stop_loss_pct?: number
   }
-}
-
-interface AuditLogRecord {
-  id: number | string
-  user_id?: number
-  action?: string
-  mode?: string
-  symbol?: string
-  order_id?: string
-  created_at?: string
 }
 
 function resultClass(result: string) {
@@ -137,7 +118,7 @@ export default function RiskControl() {
   const [riskConfig, setRiskConfig] = useState<RiskConfig>({})
   const [auditTotal, setAuditTotal] = useState(0)
   const [auditLogs, setAuditLogs] = useState<AuditLogRecord[]>([])
-  const [breaker, setBreaker] = useState<BreakerStatusView | null>(null)
+  const [breaker, setBreaker] = useState<CircuitBreakerStatus | null>(null)
   const [positions, setPositions] = useState<Position[]>([])
   const [strategies, setStrategies] = useState<StrategyInstance[]>([])
   const [marketSummary, setMarketSummary] = useState<SignalLiveResponse['summary'] | null>(null)
@@ -161,16 +142,16 @@ export default function RiskControl() {
         if (verdictResponse.status === 'fulfilled') setVerdicts(verdictResponse.value.data?.records || [])
         if (contextResponse.status === 'fulfilled') setContexts(contextResponse.value.data?.records || [])
         if (auditResponse.status === 'fulfilled') {
-          setAuditTotal((auditResponse.value.data as any)?.total || (auditResponse.value.data as any)?.records?.length || 0)
-          setAuditLogs(((auditResponse.value.data as any)?.records || []) as AuditLogRecord[])
+          setAuditTotal(auditResponse.value.data?.total || auditResponse.value.data?.records?.length || 0)
+          setAuditLogs(auditResponse.value.data?.records || [])
         }
         if (configResponse.status === 'fulfilled') setRiskConfig((configResponse.value.data as RiskConfig) || {})
         if (breakerResponse.status === 'fulfilled') {
-          const breakers = (breakerResponse.value.data as any)?.breakers || []
+          const breakers = breakerResponse.value.data?.breakers || []
           setBreaker(breakers[0] || null)
         }
         if (positionResponse.status === 'fulfilled') setPositions(positionResponse.value.data?.positions || [])
-        if (strategyResponse.status === 'fulfilled') setStrategies(((strategyResponse.value.data as any)?.strategies || []) as StrategyInstance[])
+        if (strategyResponse.status === 'fulfilled') setStrategies(strategyResponse.value.data?.strategies || [])
         if (marketResponse.status === 'fulfilled') setMarketSummary(marketResponse.value.data?.summary || null)
         const failed = [verdictResponse, contextResponse, auditResponse, configResponse, breakerResponse, positionResponse, strategyResponse, marketResponse].filter(result => result.status === 'rejected').length
         setLoadError(failed > 0 ? `${failed} 个风控数据接口连接异常` : '')
@@ -196,9 +177,9 @@ export default function RiskControl() {
           setStrategyMessage(`${label}接口连接异常`)
           return
         }
-        const status = (response.data as any).status
+        const status = response.data.status
         setStrategyMessageOk(true)
-        setStrategyMessage((response.data as any).message || `${label}已提交`)
+        setStrategyMessage(response.data.message || `${label}已提交`)
         setStrategies(current => current.map(item => item.id === row.id ? { ...item, status: status || (paused ? 'active' : 'paused') } : item))
       },
     })

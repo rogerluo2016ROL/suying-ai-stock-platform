@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Empty, message, Select, Space, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import {
   screenerApi,
@@ -77,7 +78,7 @@ export default function SupplyChainCapexEvidenceReviewPanel() {
     { label: '全部产业链', value: '' },
   ], [])
 
-  const columns: any[] = [
+  const columns: TableColumnsType<CapexEvidenceReviewItem> = [
     {
       title: '公司/映射',
       width: 190,

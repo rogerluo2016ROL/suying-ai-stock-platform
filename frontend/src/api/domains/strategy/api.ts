@@ -1,6 +1,13 @@
 import type { AxiosResponse } from 'axios'
 import { api } from '../../http'
-import type { StrategyPick } from './types'
+import type {
+  StrategyPick,
+  AutoStrategy,
+  StrategyListResponse,
+  StrategyLogResponse,
+  StrategyUpdateResponse,
+  StrategyActionResponse,
+} from './types'
 import type {
   StrategyGenerateResponse,
   StrategyTemplatesResponse,
@@ -33,10 +40,10 @@ export const strategyApi = {
     api.delete(`/strategy/plans/${planId}`),
 
   // ── 执行器（量化交易）──
-  listInstances: (status?: string): Promise<AxiosResponse> =>
+  listInstances: (status?: string): Promise<AxiosResponse<StrategyListResponse>> =>
     api.get('/strategy/list', { params: status ? { status } : undefined }),
 
-  getInstance: (id: string): Promise<AxiosResponse> =>
+  getInstance: (id: string): Promise<AxiosResponse<AutoStrategy>> =>
     api.get(`/strategy/${id}`),
 
   /** 更新策略实例参数（PRD AC-10.8）。position_rules 整体替换，调用方需合并现有仓位规则。 */
@@ -48,21 +55,21 @@ export const strategyApi = {
     check_interval_sec?: number
     position_rules?: Record<string, number>
     risk_rules?: Record<string, number>
-  }): Promise<AxiosResponse> =>
+  }): Promise<AxiosResponse<StrategyUpdateResponse>> =>
     api.put(`/strategy/${id}`, body),
 
-  getInstanceLog: (id: string): Promise<AxiosResponse> =>
+  getInstanceLog: (id: string): Promise<AxiosResponse<StrategyLogResponse>> =>
     api.get(`/strategy/${id}/log`),
 
-  startInstance: (id: string): Promise<AxiosResponse> =>
+  startInstance: (id: string): Promise<AxiosResponse<StrategyActionResponse>> =>
     api.post(`/strategy/${id}/start`),
 
-  pauseInstance: (id: string): Promise<AxiosResponse> =>
+  pauseInstance: (id: string): Promise<AxiosResponse<StrategyActionResponse>> =>
     api.post(`/strategy/${id}/pause`),
 
-  resumeInstance: (id: string): Promise<AxiosResponse> =>
+  resumeInstance: (id: string): Promise<AxiosResponse<StrategyActionResponse>> =>
     api.post(`/strategy/${id}/resume`),
 
-  stopInstance: (id: string): Promise<AxiosResponse> =>
+  stopInstance: (id: string): Promise<AxiosResponse<StrategyActionResponse>> =>
     api.post(`/strategy/${id}/stop`),
 }

@@ -1,4 +1,5 @@
 import { Button, Empty, Space, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { ArrowDownOutlined, ArrowUpOutlined, ProfileOutlined, SignalFilled } from '@ant-design/icons'
 import type { CandidateCompany } from './types'
 import { formatNumber, scoreColor } from './formatters'
@@ -58,7 +59,7 @@ export default function CandidateCompanyTable({
   mappingMessage,
   onOpenCompany,
 }: CandidateCompanyTableProps) {
-  const columns: any[] = [
+  const columns: TableColumnsType<CandidateCompany> = [
     {
       title: '上市公司',
       dataIndex: 'name',

@@ -6,7 +6,18 @@ import { api } from './http'
 export { injectAuth, clearAuth, injectPlatformContext, clearPlatformContext } from './http'
 
 // ── 域类型 re-export ──
-export type { StrategyPick } from './domains/strategy/types'
+export type {
+  StrategyPick,
+  AutoStrategy,
+  AutoLog,
+  MarketTemplate,
+  PositionRules,
+  RiskRules,
+  StrategyListResponse,
+  StrategyLogResponse,
+  StrategyUpdateResponse,
+  StrategyActionResponse,
+} from './domains/strategy/types'
 export type { TradeOrder, TradeAccount } from './domains/trade/types'
 export type {
   MembershipInfo,

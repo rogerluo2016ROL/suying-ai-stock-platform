@@ -4,6 +4,7 @@ import { FundOutlined, RobotOutlined, SafetyCertificateOutlined } from '@ant-des
 import { Modal } from 'antd'
 import ReactECharts from 'echarts-for-react'
 import { strategyApi } from '../api/client'
+import type { AutoStrategy, AutoLog, MarketTemplate } from '../api/client'
 import { P0WorkflowNav } from '../components/layout'
 import {
   DataDomainBadge,
@@ -18,58 +19,6 @@ import {
   RiskBanner,
   SideRail,
 } from '../components/prototype'
-
-interface PositionRules {
-  max_positions?: number
-  single_max_pct?: number
-  total_position_cap_pct?: number
-}
-
-interface RiskRules {
-  daily_max_loss_pct?: number
-  stop_loss_pct?: number
-  take_profit_pct?: number
-  trailing_stop_pct?: number
-}
-
-interface AutoStrategy {
-  id: string
-  name: string
-  status?: string
-  trade_mode?: string
-  capital?: number
-  picks_count?: number
-  picks?: unknown[]
-  position_rules?: PositionRules
-  risk_rules?: RiskRules
-  created_at?: string
-  updated_at?: string
-}
-
-interface AutoLog {
-  timestamp?: string
-  level?: string
-  message?: string
-  details?: Record<string, string | number | undefined>
-}
-
-/** 策略模板：兼容后端 /strategy/templates 基础字段与设计稿扩展字段（收益率/回撤为可选 mock 字段）。 */
-interface MarketTemplate {
-  id: string
-  name: string
-  description?: string
-  model_name?: string
-  risk_level?: string
-  risk?: string
-  max_positions?: number
-  single_max?: number
-  stop_loss_pct?: number
-  target_return_pct?: number
-  holding_days?: number
-  capital?: number
-  annual_return?: number
-  max_drawdown?: number
-}
 
 type TemplateSort = 'default' | 'return' | 'drawdown'
 
@@ -126,7 +75,7 @@ export default function AutoTrade() {
   useEffect(() => {
     strategyApi.listInstances()
       .then(response => {
-        const nextStrategies = (response.data as any)?.strategies || []
+        const nextStrategies = response.data.strategies || []
         setStrategies(nextStrategies)
         setSelectedStrategy(current => current || nextStrategies[0] || null)
         setLoadError('')
@@ -142,7 +91,7 @@ export default function AutoTrade() {
     if (active !== 'market') return
     strategyApi.getTemplates()
       .then(response => {
-        setTemplates((response.data as any)?.templates || [])
+        setTemplates(response.data.templates || [])
         setTemplatesError('')
       })
       .catch(() => {
@@ -161,7 +110,7 @@ export default function AutoTrade() {
   const loadLogs = async (strategyId: string) => {
     const logResponse = await strategyApi.getInstanceLog(strategyId).catch(() => null)
     if (logResponse?.data) {
-      setLogs((logResponse.data as any)?.logs || [])
+      setLogs(logResponse.data.logs || [])
       setLogError('')
     } else {
       setLogs([])
@@ -183,7 +132,7 @@ export default function AutoTrade() {
     setLogError('')
     const detailResponse = await strategyApi.getInstance(strategy.id).catch(() => null)
     if (detailResponse?.data) {
-      setSelectedStrategy({ ...strategy, ...(detailResponse.data as AutoStrategy) })
+      setSelectedStrategy({ ...strategy, ...detailResponse.data })
     }
     await loadLogs(strategy.id)
   }
@@ -200,8 +149,8 @@ export default function AutoTrade() {
       return null
     })
     if (!response?.data) return
-    const status = (response.data as any).status
-    setActionMessage((response.data as any).message || `${action} 已提交`)
+    const status = response.data.status
+    setActionMessage(response.data.message || `${action} 已提交`)
     setStrategies(current => current.map(item => item.id === strategy.id ? { ...item, status } : item))
     setSelectedStrategy(current => current?.id === strategy.id ? { ...current, status } : current)
   }
@@ -226,7 +175,7 @@ export default function AutoTrade() {
       })
     setFollowSaving(false)
     if (!response?.data) return
-    setActionMessage(`一键跟单成功，已创建方案：${(response.data as any).plan?.name || planName}`)
+    setActionMessage(`一键跟单成功，已创建方案：${response.data.plan?.name || planName}`)
     setFollowTarget(null)
   }
 
@@ -247,12 +196,12 @@ export default function AutoTrade() {
     })
     setConfigSaving(false)
     if (!response?.data) return
-    const updated = (response.data as any).strategy as AutoStrategy | undefined
+    const updated = response.data.strategy
     if (updated) {
       setStrategies(current => current.map(item => item.id === updated.id ? { ...item, ...updated } : item))
       setSelectedStrategy(current => current?.id === updated.id ? { ...current, ...updated } : current)
     }
-    setActionMessage((response.data as any).message || '策略已更新')
+    setActionMessage(response.data.message || '策略已更新')
   }
 
   const navigateRisk = (details: Record<string, string | number | undefined> = {}) => {

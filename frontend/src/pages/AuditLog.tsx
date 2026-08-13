@@ -9,28 +9,11 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { tradeApi } from '../api/domains/trade/api'
+import type { AuditLogRecord } from '../api/types'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 const { RangePicker } = DatePicker
-
-// P1-01: typed audit-log record + filter params (replaces `any`).
-interface AuditLogRecord {
-  id?: string | number
-  created_at?: string
-  event_type?: string
-  symbol?: string
-  side?: string
-  detail?: string | Record<string, unknown>
-  mode?: string
-  operator?: string
-  ip_address?: string
-  quantity?: number
-  price?: number | string
-  filled_qty?: number
-  error_message?: string
-  [key: string]: unknown
-}
 
 interface AuditLogQuery {
   page?: number

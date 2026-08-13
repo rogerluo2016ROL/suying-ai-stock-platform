@@ -2,6 +2,7 @@
 // 从 SupplyChainBom.tsx 拆出，nodeColumns 列定义随 UI 下沉
 
 import { Button, Col, Row, Space, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { EyeOutlined } from '@ant-design/icons'
 import NodeThesisPanel from './NodeThesisPanel'
 import NodeOverlayTags from './NodeOverlayTags'
@@ -32,7 +33,7 @@ export default function NodeResearchSection({
   chainOverlays,
   onSelectNode,
 }: NodeResearchSectionProps) {
-  const nodeColumns: any[] = [
+  const nodeColumns: TableColumnsType<BomNode> = [
     {
       title: 'BOM节点',
       dataIndex: 'name',

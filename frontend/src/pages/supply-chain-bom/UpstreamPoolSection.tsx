@@ -2,6 +2,7 @@
 // 从 SupplyChainBom.tsx 拆出，upstreamColumns 列定义随 UI 下沉
 
 import { Button, Empty, Space, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { EyeOutlined } from '@ant-design/icons'
 import type { CandidateCompany } from './types'
 import { formatNumber } from './formatters'
@@ -15,7 +16,7 @@ interface UpstreamPoolSectionProps {
 }
 
 export default function UpstreamPoolSection({ candidates, onOpenCompany }: UpstreamPoolSectionProps) {
-  const upstreamColumns: any[] = [
+  const upstreamColumns: TableColumnsType<CandidateCompany> = [
     {
       title: '上游公司',
       width: 180,

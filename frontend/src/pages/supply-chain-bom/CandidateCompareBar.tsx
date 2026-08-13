@@ -1,4 +1,5 @@
 import { Button, Descriptions, Drawer, Empty, Space, Table, Tag, Typography } from 'antd'
+import type { TableColumnsType } from 'antd'
 import { BarChartOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import type { CandidateCompany } from './types'
@@ -18,7 +19,7 @@ export default function CandidateCompareBar({ candidates }: CandidateCompareBarP
     return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="勾选候选公司后进行横向对比" />
   }
 
-  const columns: any[] = [
+  const columns: TableColumnsType<CandidateCompany> = [
     {
       title: '公司',
       dataIndex: 'name',
